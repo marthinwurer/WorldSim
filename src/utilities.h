@@ -16,8 +16,6 @@ float bilinearInterpolation(
 
 
 
-double nextDouble(sfmt_t * rand);
-
 static inline int mod(int a, int b)
 {
     int r = a % b;

@@ -1,5 +1,4 @@
 
-#include <SFMT.h>
 
 #include "utilities.h"
 
@@ -15,6 +14,3 @@ float bilinearInterpolation(
 							fracy * posxposy);
 }
 
-double nextDouble(sfmt_t * rand){
-	return sfmt_genrand_real1(rand);
-}

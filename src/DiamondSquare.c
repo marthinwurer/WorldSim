@@ -8,26 +8,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <SFMT.h>
+#include <string.h>
 
 #include "DiamondSquare.h"
 #include "utilities.h"
+#include "xoroshiro128plus.h"
 
 #define ind(x, y) (toReturn->values[mod(x, dimension) + mod( y, dimension) * dimension])
 
 #define calc(x, y) (mod(x, dimension) + mod( y, dimension) * dimension)
 
+
+void dispDS( DiamondSquare_s * ds ){
+	for( int yy = 0; yy < ds->width; yy++ ){
+		for( int xx = 0; xx < ds->height; xx++ ){
+                    printf("%f, ", ds->values[
+                        mod(xx, ds->width) + mod( yy, ds->height) * ds->height]);
+		}
+                printf("\n");
+	}
+}
+
 /*
  * DSCreate - takes a power of two of size, and a random number generator, and
  * 		creates a new diamond-square fractal of the given size
  */
-DiamondSquare_s * DSCreate(int power, sfmt_t * rand){
+DiamondSquare_s * DSCreate(int power, rng_state_t * rand){
 
 	DiamondSquare_s * toReturn = malloc( sizeof(DiamondSquare_s));
 	int dimension = pow(2, power);
 	toReturn->height = dimension;
 	toReturn->width = dimension;
-	toReturn->values = malloc( sizeof( float ) * dimension * dimension);
+        size_t size = sizeof( float ) * dimension * dimension;
+	toReturn->values = malloc( size);
+        memset( toReturn->values, 0, size);
 
 
 	float min = 0.0;
@@ -46,10 +60,11 @@ DiamondSquare_s * DSCreate(int power, sfmt_t * rand){
 
 	height /= 2.0;
 
-	for(; step > 1; height /= 2.0, step = step / 2 ){
+	for(; step > 0; height /= 2.0, step = step / 2 ){
+//            dispDS(toReturn);
 		printf( "step = %i\n", step);
-		int half = step * 2;
-		float h2 = height/2.0f;
+		int half = step / 2;
+		float h2 = height*2.0f;
 
 		// do the diamond step
 		for( int yy = 0; yy < dimension; yy += step){
@@ -84,6 +99,8 @@ DiamondSquare_s * DSCreate(int power, sfmt_t * rand){
 				}
 			}
 		}
+//                dispDS(toReturn);
+//                printf("diamond done\n");
 
 		// do the square step
 		// do the top side, then the left side each iteration
@@ -148,6 +165,7 @@ DiamondSquare_s * DSCreate(int power, sfmt_t * rand){
 		}
 
 	}
+        printf( "max: %f, min %f\n", max, min);
 
 
 	// normalize the array
@@ -157,6 +175,7 @@ DiamondSquare_s * DSCreate(int power, sfmt_t * rand){
 			ind(xx, yy) = (ind(xx, yy) - min) / difference;
 		}
 	}
+//        dispDS(toReturn);
 
 
 	return toReturn;

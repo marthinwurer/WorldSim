@@ -8,7 +8,7 @@
 #ifndef DIAMONDSQUARE_H_
 #define DIAMONDSQUARE_H_
 
-#include <SFMT.h>
+#include "xoroshiro128plus.h"
 
 typedef struct DiamondSquare_struct{
 	int height;
@@ -17,7 +17,7 @@ typedef struct DiamondSquare_struct{
 
 } DiamondSquare_s;
 
-DiamondSquare_s * DSCreate(int power, sfmt_t * rand);
+DiamondSquare_s * DSCreate(int power, rng_state_t * rand);
 
 
 #endif /* DIAMONDSQUARE_H_ */

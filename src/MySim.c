@@ -12,12 +12,13 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 #include <time.h>
-#include <SFMT.h>
 
+
+#include "xoroshiro128plus.h"
 #include "DiamondSquare.h"
 
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 480;
+const int SCREEN_WIDTH = 1024;
+const int SCREEN_HEIGHT = 1024;
 
 
 void drawPoint(SDL_Renderer* renderer,
@@ -34,22 +35,38 @@ void drawPoint(SDL_Renderer* renderer,
 
 int main(void) {
 	time_t currtime;
-	sfmt_t rand;
+	rng_state_t rand;
 
 	time(&currtime);
-	sfmt_init_gen_rand(&rand, (int) currtime);
+	seed(&rand, (int) currtime, currtime * 3);
 
 
 	printf( "%i\n", 1/2);
 
 	puts("!!!Hello World!!!"); /* prints !!!Hello World!!! */
-	printf("%u\n",  sfmt_genrand_uint32(&rand));
-	printf("%u\n",  sfmt_genrand_uint32(&rand));
-	printf("%u\n",  sfmt_genrand_uint32(&rand));
-	printf("%u\n",  sfmt_genrand_uint32(&rand));
-	printf("%u\n",  sfmt_genrand_uint32(&rand));
-	printf("%u\n",  sfmt_genrand_uint32(&rand));
-	DiamondSquare_s * fractal = DSCreate(8, &rand);
+	printf("%u\n", (unsigned int) next(&rand));
+	printf("%u\n", (unsigned int) next(&rand));
+	printf("%u\n", (unsigned int) next(&rand));
+	printf("%u\n", (unsigned int) next(&rand));
+	printf("%u\n", (unsigned int) next(&rand));
+	DiamondSquare_s * fractal = DSCreate(10, &rand);
+
+//    // display the dloats in the fractal
+//    for( int ii = 0; ii < fractal->height * fractal->width; ii++){
+//        printf( "%f, ", fractal->values[ii]);
+//    }
+//    printf("\n");
+
+
+//	for( int yy = 0; yy < fractal->height; yy++){
+//		for( int xx = 0; xx < fractal->width; xx++){
+//
+//			Uint8 color = fractal->values[xx + yy * fractal->height] * 255;
+//                        printf( "%3d, ", color);
+//		}
+//                printf("\n");
+//	}
+
 	//The window we'll be rendering to
 	SDL_Window* window = NULL;
 
@@ -78,23 +95,25 @@ int main(void) {
 		exit(0);
 	}
 
+        // ENTER THE MAIN GAME LOOP
+
 	//Clear screen
 	SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0xFF );
 	SDL_RenderClear( gRenderer );
 
-	// Generate a new fractal
 	for( int yy = 0; yy < fractal->height; yy++){
 		for( int xx = 0; xx < fractal->width; xx++){
 
 			Uint8 color = fractal->values[xx + yy * fractal->height] * 255;
 			drawPoint(gRenderer, xx, yy, color, color, color, 0xFF);
 		}
+                printf("\n");
 	}
 	//Update screen
 	SDL_RenderPresent( gRenderer );
 
 	//Wait two seconds
-	SDL_Delay( 2000 );
+	SDL_Delay( 20000 );
 
 	//Destroy window
 	SDL_DestroyWindow( window );

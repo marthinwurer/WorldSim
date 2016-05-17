@@ -19,5 +19,7 @@ typedef struct DiamondSquare_struct{
 
 DiamondSquare_s * DSCreate(int power, rng_state_t * rand);
 
+void DSDelete( DiamondSquare_s * toDelete );
+
 
 #endif /* DIAMONDSQUARE_H_ */

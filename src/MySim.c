@@ -20,6 +20,8 @@
 const int SCREEN_WIDTH = 1024;
 const int SCREEN_HEIGHT = 1024;
 
+const int FRACTAL_POWER = 10;
+
 
 void drawPoint(SDL_Renderer* renderer,
         int           x,
@@ -49,29 +51,11 @@ int main(void) {
     printf("%u\n", (unsigned int) next(&rand));
     printf("%u\n", (unsigned int) next(&rand));
     printf("%u\n", (unsigned int) next(&rand));
-    DiamondSquare_s * fractal = DSCreate(10, &rand);
+    DiamondSquare_s * fractal = DSCreate(FRACTAL_POWER, &rand);
 
-//    // display the dloats in the fractal
-//    for( int ii = 0; ii < fractal->height * fractal->width; ii++){
-//        printf( "%f, ", fractal->values[ii]);
-//    }
-//    printf("\n");
-
-
-//  for( int yy = 0; yy < fractal->height; yy++){
-//      for( int xx = 0; xx < fractal->width; xx++){
-//
-//          Uint8 color = fractal->values[xx + yy * fractal->height] * 255;
-//                        printf( "%3d, ", color);
-//      }
-//                printf("\n");
-//  }
 
     //The window we'll be rendering to
     SDL_Window* window = NULL;
-
-    //The surface contained by the window
-    SDL_Surface* screenSurface = NULL;
 
     //Initialize SDL
     if( SDL_Init( SDL_INIT_VIDEO ) < 0 )
@@ -95,24 +79,46 @@ int main(void) {
         exit(0);
     }
 
+    // event union
+    SDL_Event event;
+
         // ENTER THE MAIN GAME LOOP
+    for(;;){
 
-    //Clear screen
-    SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0xFF );
-    SDL_RenderClear( gRenderer );
 
-    for( int yy = 0; yy < fractal->height; yy++){
-        for( int xx = 0; xx < fractal->width; xx++){
-
-            Uint8 color = fractal->values[xx + yy * fractal->height] * 255;
-            drawPoint(gRenderer, xx, yy, color, color, color, 0xFF);
+        // process all events in the queue.
+        while( SDL_PollEvent( &event )){
+            switch( event.type){
+                case SDL_QUIT:
+                    exit(0);
+                    break;
+                
+                case SDL_KEYDOWN:
+                    DSDelete( fractal );
+                    fractal = DSCreate(FRACTAL_POWER, &rand);
+                    break;
+            }
         }
+        
+    
+        //Clear screen
+        SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0xFF );
+        SDL_RenderClear( gRenderer );
+    
+        for( int yy = 0; yy < fractal->height; yy++){
+            for( int xx = 0; xx < fractal->width; xx++){
+    
+                Uint8 color = fractal->values[xx + yy * fractal->height] * 255;
+                drawPoint(gRenderer, xx, yy, color, color, color, 0xFF);
+            }
+        }
+        //Update screen
+        SDL_RenderPresent( gRenderer );
+    
+        // wait 
+        SDL_Delay( 200 );
+    
     }
-    //Update screen
-    SDL_RenderPresent( gRenderer );
-
-    //Wait two seconds
-    SDL_Delay( 20000 );
 
     //Destroy window
     SDL_DestroyWindow( window );

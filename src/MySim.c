@@ -16,11 +16,15 @@
 
 #include "xoroshiro128plus.h"
 #include "DiamondSquare.h"
+#include "interpolation.h"
 
 const int SCREEN_WIDTH = 1024;
 const int SCREEN_HEIGHT = 1024;
 
 const int FRACTAL_POWER = 10;
+
+int display_perspective = 0;
+int display_mode = 0;
 
 
 void drawPoint(SDL_Renderer* renderer,
@@ -108,8 +112,8 @@ int main(void) {
         for( int yy = 0; yy < fractal->height; yy++){
             for( int xx = 0; xx < fractal->width; xx++){
     
-                Uint8 color = fractal->values[xx + yy * fractal->height] * 255;
-                drawPoint(gRenderer, xx, yy, color, color, color, 0xFF);
+                SDL_Color color = alpine_gradient(0.5f, fractal->values[xx + yy * fractal->height]);
+                drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
             }
         }
         //Update screen

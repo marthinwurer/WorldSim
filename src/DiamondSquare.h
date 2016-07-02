@@ -21,5 +21,8 @@ DiamondSquare_s * DSCreate(int power, rng_state_t * rand);
 
 void DSDelete( DiamondSquare_s * toDelete );
 
+float value( DiamondSquare_s * ds, int x, int y);
+
+void setds( DiamondSquare_s * ds, int x, int y, float val);
 
 #endif /* DIAMONDSQUARE_H_ */

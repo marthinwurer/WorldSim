@@ -20,6 +20,31 @@
 
 #define calc(x, y) (mod(x, dimension) + mod( y, dimension) * dimension)
 
+DiamondSquare_s * create_ds(int width, int height){
+    // allocate and initialize the structure and its array.
+    DiamondSquare_s * toReturn = malloc( sizeof(DiamondSquare_s));
+    int dimension = pow(2, power);
+    toReturn->height = height;
+    toReturn->width = width;
+        size_t size = sizeof( float ) * width * height;
+    toReturn->values = malloc( size);
+        memset( toReturn->values, 0, size);
+
+}
+
+/*
+ * This function gets the value at the given X, Y location in the map.
+ */
+float value( DiamondSquare_s * ds, int x, int y){
+	return ds->values[mod(x, ds->width) + mod( y, ds->height) * ds->height];
+}
+
+/*
+ * This function sets the value of the given map at the given X, Y location to the value given.
+ */
+void setds( DiamondSquare_s * ds, int x, int y, float val){
+	ds->values[mod(x, ds->width) + mod( y, ds->height) * ds->height] = val;
+}
 
 /*
     dispDS - Display the given DiamondSquare_s

@@ -17,6 +17,7 @@
 #include "xoroshiro128plus.h"
 #include "DiamondSquare.h"
 #include "interpolation.h"
+#include "sobel.h"
 
 const int SCREEN_WIDTH = 1024;
 const int SCREEN_HEIGHT = 1024;
@@ -55,7 +56,9 @@ int main(void) {
     printf("%u\n", (unsigned int) next(&rand));
     printf("%u\n", (unsigned int) next(&rand));
     printf("%u\n", (unsigned int) next(&rand));
-    DiamondSquare_s * fractal = DSCreate(FRACTAL_POWER, &rand);
+    float maxval = 0.0;
+    map2d * fractal = DSCreate(FRACTAL_POWER, &rand);
+    map2d * gradient = sobel_gradient(fractal, &maxval);
 
 
     //The window we'll be rendering to
@@ -99,7 +102,10 @@ int main(void) {
                 
                 case SDL_KEYDOWN:
                     DSDelete( fractal );
+                    DSDelete( gradient);
                     fractal = DSCreate(FRACTAL_POWER, &rand);
+                    gradient = sobel_gradient(fractal, &maxval);
+
                     break;
             }
         }
@@ -113,6 +119,7 @@ int main(void) {
             for( int xx = 0; xx < fractal->width; xx++){
     
                 SDL_Color color = alpine_gradient(0.5f, fractal->values[xx + yy * fractal->height]);
+//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
                 drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
             }
         }

@@ -2,7 +2,7 @@
 CC=gcc
 CFLAGS=-std=c99 -c -Wall -Wextra -g
 LIBS=-lSDL2 -lm
-OBJECTS=MySim.o DiamondSquare.o xoroshiro128plus.o utilities.o interpolation.o
+OBJECTS=MySim.o DiamondSquare.o xoroshiro128plus.o utilities.o interpolation.o sobel.o
 
 all: main
 

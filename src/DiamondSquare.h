@@ -15,14 +15,17 @@ typedef struct DiamondSquare_struct{
 	int width;
 	float * values;
 
-} DiamondSquare_s;
+} map2d;
 
-DiamondSquare_s * DSCreate(int power, rng_state_t * rand);
+map2d * new_map2d(int width, int height);
 
-void DSDelete( DiamondSquare_s * toDelete );
 
-float value( DiamondSquare_s * ds, int x, int y);
+map2d * DSCreate(int power, rng_state_t * rand);
 
-void setds( DiamondSquare_s * ds, int x, int y, float val);
+void DSDelete( map2d * toDelete );
+
+float value( map2d * ds, int x, int y);
+
+void map_set( map2d * ds, int x, int y, float val);
 
 #endif /* DIAMONDSQUARE_H_ */

@@ -47,3 +47,17 @@ SDL_Color alpine_gradient(float sealevel, float height){
 
 
 }
+
+SDL_Color greyscale_gradient(float max, float current){
+    static SDL_Color black = {0, 0, 0, 255};
+    static SDL_Color white = {255, 255, 255, 255};
+
+    if( current >= max){
+    	return white;
+    }
+    else{
+    	return interpolate_colors(black, white, current/max);
+    }
+
+}
+

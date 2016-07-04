@@ -20,36 +20,36 @@
 
 #define calc(x, y) (mod(x, dimension) + mod( y, dimension) * dimension)
 
-DiamondSquare_s * create_ds(int width, int height){
+map2d * new_map2d(int width, int height){
     // allocate and initialize the structure and its array.
-    DiamondSquare_s * toReturn = malloc( sizeof(DiamondSquare_s));
-    int dimension = pow(2, power);
+    map2d * toReturn = malloc( sizeof(map2d));
     toReturn->height = height;
     toReturn->width = width;
         size_t size = sizeof( float ) * width * height;
     toReturn->values = malloc( size);
         memset( toReturn->values, 0, size);
 
+    return toReturn;
 }
 
 /*
  * This function gets the value at the given X, Y location in the map.
  */
-float value( DiamondSquare_s * ds, int x, int y){
+float value( map2d * ds, int x, int y){
 	return ds->values[mod(x, ds->width) + mod( y, ds->height) * ds->height];
 }
 
 /*
  * This function sets the value of the given map at the given X, Y location to the value given.
  */
-void setds( DiamondSquare_s * ds, int x, int y, float val){
+void map_set( map2d * ds, int x, int y, float val){
 	ds->values[mod(x, ds->width) + mod( y, ds->height) * ds->height] = val;
 }
 
 /*
     dispDS - Display the given DiamondSquare_s
 */
-void dispDS( DiamondSquare_s * ds ){
+void dispDS( map2d * ds ){
     for( int yy = 0; yy < ds->width; yy++ ){
         for( int xx = 0; xx < ds->height; xx++ ){
                     printf("%f, ", ds->values[
@@ -63,16 +63,11 @@ void dispDS( DiamondSquare_s * ds ){
  * DSCreate - takes a power of two of size, and a random number generator, and
  *      creates a new diamond-square fractal of the given size
  */
-DiamondSquare_s * DSCreate(int power, rng_state_t * rand){
+map2d * DSCreate(int power, rng_state_t * rand){
 
     // allocate and initialize the structure and its array.
-    DiamondSquare_s * toReturn = malloc( sizeof(DiamondSquare_s));
     int dimension = pow(2, power);
-    toReturn->height = dimension;
-    toReturn->width = dimension;
-        size_t size = sizeof( float ) * dimension * dimension;
-    toReturn->values = malloc( size);
-        memset( toReturn->values, 0, size);
+    map2d * toReturn = new_map2d(dimension, dimension);
 
     // the initial step and height are the dimension
     int step = dimension;
@@ -198,7 +193,7 @@ DiamondSquare_s * DSCreate(int power, rng_state_t * rand){
 /* 
     delete a DiamondSquare
 */
-void DSDelete( DiamondSquare_s * toDelete ){
+void DSDelete( map2d * toDelete ){
     free( toDelete->values );
     free( toDelete );
 }

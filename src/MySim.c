@@ -27,6 +27,45 @@ const int FRACTAL_POWER = 10;
 int display_perspective = 0;
 int display_mode = 0;
 
+/*#version 430
+
+in vec3 fragPos;
+in vec3 fragNorm;
+in vec2 fragTexUV;
+uniform sampler2D sampler;
+out vec4 fragColor;
+
+void main()
+{
+	vec3 lightDir = normalize(vec3(0,0,1));
+	float lamb = max(dot(lightDir, fragNorm), 0);
+	vec3 viewDir = normalize(-fragPos);
+	vec3 halfDir = normalize(lightDir + viewDir);
+	float spcAngl = max(dot(halfDir, fragNorm), 0);
+	float specular = pow(spcAngl, 16.0);
+	float light = .1 + .6 * lamb + .3 * specular;
+	fragColor = texture(sampler, fragTexUV) * light;
+}
+
+sam's lighting shader
+
+this is slightly hacked
+but this is a light shining in the direction of the positive z axis
+given by lightdir
+lamb (lambda) is the dot of the light direction with the normal
+then some specular lighting stuff
+
+the actual amount of light on a given pixel emitted from the shader is a base of .1
+(so things are not completely black when no light is shining on it), then .6 defined
+ by the light direction, then .3 defined by the specular reflection amount
+for you I may want to use a light value of like .3 + .7 * dotOfLightDirAndNormal
+
+learnopengl.com
+
+
+
+*/
+
 
 void drawPoint(SDL_Renderer* renderer,
         int           x,
@@ -89,6 +128,9 @@ int main(void) {
     // event union
     SDL_Event event;
 
+    // the current display state
+
+
         // ENTER THE MAIN GAME LOOP
     for(;;){
 
@@ -101,8 +143,8 @@ int main(void) {
                     break;
                 
                 case SDL_KEYDOWN:
-                    DSDelete( fractal );
-                    DSDelete( gradient);
+                    map2d_delete( fractal );
+                    map2d_delete( gradient);
                     fractal = DSCreate(FRACTAL_POWER, &rand);
                     gradient = sobel_gradient(fractal, &maxval);
 

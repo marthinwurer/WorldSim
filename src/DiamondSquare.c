@@ -10,6 +10,7 @@
 #include <math.h>
 #include <string.h>
 
+#include "map2d.h"
 #include "DiamondSquare.h"
 #include "utilities.h"
 #include "xoroshiro128plus.h"
@@ -19,32 +20,6 @@
 #define ind(x, y) (toReturn->values[mod(x, dimension) + mod( y, dimension) * dimension])
 
 #define calc(x, y) (mod(x, dimension) + mod( y, dimension) * dimension)
-
-map2d * new_map2d(int width, int height){
-    // allocate and initialize the structure and its array.
-    map2d * toReturn = malloc( sizeof(map2d));
-    toReturn->height = height;
-    toReturn->width = width;
-        size_t size = sizeof( float ) * width * height;
-    toReturn->values = malloc( size);
-        memset( toReturn->values, 0, size);
-
-    return toReturn;
-}
-
-/*
- * This function gets the value at the given X, Y location in the map.
- */
-float value( map2d * ds, int x, int y){
-	return ds->values[mod(x, ds->width) + mod( y, ds->height) * ds->height];
-}
-
-/*
- * This function sets the value of the given map at the given X, Y location to the value given.
- */
-void map_set( map2d * ds, int x, int y, float val){
-	ds->values[mod(x, ds->width) + mod( y, ds->height) * ds->height] = val;
-}
 
 /*
     dispDS - Display the given DiamondSquare_s
@@ -188,15 +163,4 @@ map2d * DSCreate(int power, rng_state_t * rand){
     // return the initialized structure
     return toReturn;
 }
-
-
-/* 
-    delete a DiamondSquare
-*/
-void DSDelete( map2d * toDelete ){
-    free( toDelete->values );
-    free( toDelete );
-}
-
-
 

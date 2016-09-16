@@ -22,19 +22,6 @@
 #define calc(x, y) (mod(x, dimension) + mod( y, dimension) * dimension)
 
 /*
-    dispDS - Display the given DiamondSquare_s
-*/
-void dispDS( map2d * ds ){
-    for( int yy = 0; yy < ds->width; yy++ ){
-        for( int xx = 0; xx < ds->height; xx++ ){
-                    printf("%f, ", ds->values[
-                        mod(xx, ds->width) + mod( yy, ds->height) * ds->height]);
-        }
-                printf("\n");
-    }
-}
-
-/*
  * DSCreate - takes a power of two of size, and a random number generator, and
  *      creates a new diamond-square fractal of the given size
  */

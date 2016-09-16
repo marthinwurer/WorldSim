@@ -7,6 +7,7 @@
 
 #include <stdlib.h> // malloc
 #include <string.h> // memset
+#include <stdio.h> // io for dispDS
 
 
 #include "map2d.h"
@@ -33,6 +34,13 @@ float value( map2d * ds, int x, int y){
 }
 
 /*
+ * This function calculates the index of a given x, y location for the given map.
+ */
+int m_index(  map2d * ds, int x, int y){
+	return mod(x, ds->width) + mod( y, ds->height) * ds->height;
+}
+
+/*
  * This function sets the value of the given map at the given X, Y location to the value given.
  */
 void map_set( map2d * ds, int x, int y, float val){
@@ -46,4 +54,19 @@ void map_set( map2d * ds, int x, int y, float val){
 void map2d_delete( map2d * toDelete ){
     free( toDelete->values );
     free( toDelete );
+}
+
+
+/*
+    dispDS - Display the given DiamondSquare_s
+*/
+void dispDS( map2d * ds ){
+	printf("\n");
+    for( int yy = 0; yy < ds->width; yy++ ){
+        for( int xx = 0; xx < ds->height; xx++ ){
+                    printf("%f, ", ds->values[
+                        mod(xx, ds->width) + mod( yy, ds->height) * ds->height]);
+        }
+                printf("\n");
+    }
 }

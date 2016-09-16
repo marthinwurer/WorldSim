@@ -40,9 +40,13 @@ SDL_Color alpine_gradient(float sealevel, float height){
     {
         return interpolate_colors( dgreen, brown, (height - 2.0/3.0) / (1.0/6.0));
     }
-    else
+    else if(height <= 1.0)
     {
         return interpolate_colors( brown, white, (height - 5.0/6.0) / (1.0/6.0));
+    }
+    else
+    {
+    	return white;
     }
 
 
@@ -58,6 +62,34 @@ SDL_Color greyscale_gradient(float max, float current){
     else{
     	return interpolate_colors(black, white, current/max);
     }
+
+}
+
+Uint8 boundify( float tobound){
+	int bound = tobound;
+	if (bound < 0){
+		return 0;
+	}else if ( bound > 255){
+		return 255;
+	}else{
+		return bound;
+	}
+}
+
+SDL_Color shade( SDL_Color initial, float slope, float maxslope){
+
+	float percent = slope / (maxslope * 2) * 0.9 + 1.0;
+	if (percent < 1.0){
+		return initial;
+	}
+
+	SDL_Color toreturn = initial;
+	toreturn.r = boundify( toreturn.r * percent);
+	toreturn.g = boundify( toreturn.g * percent);
+	toreturn.b = boundify( toreturn.b * percent);
+
+
+	return toreturn;
 
 }
 

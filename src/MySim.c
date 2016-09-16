@@ -18,6 +18,7 @@
 #include "DiamondSquare.h"
 #include "interpolation.h"
 #include "sobel.h"
+#include "erosion.h"
 
 const int SCREEN_WIDTH = 1024;
 const int SCREEN_HEIGHT = 1024;
@@ -98,6 +99,7 @@ int main(void) {
     float maxval = 0.0;
     map2d * fractal = DSCreate(FRACTAL_POWER, &rand);
     map2d * gradient = sobel_gradient(fractal, &maxval);
+    map_set(fractal, 300, 300, 100);
 
 
     //The window we'll be rendering to
@@ -111,7 +113,8 @@ int main(void) {
     }
 
     //Create window
-    window = SDL_CreateWindow( "SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
+    window = SDL_CreateWindow( "SDL Tutorial", SDL_WINDOWPOS_UNDEFINED,
+    		SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
     if( window == NULL )
     {
         printf( "Window could not be created! SDL_Error: %s\n", SDL_GetError() );
@@ -143,6 +146,12 @@ int main(void) {
                     break;
                 
                 case SDL_KEYDOWN:
+                	if(event.key.keysym.sym == SDLK_d){
+                		map2d * temp = thermal_erosion(fractal);
+                		map2d_delete(fractal);
+                		fractal = temp;
+                		break;
+                	}
                     map2d_delete( fractal );
                     map2d_delete( gradient);
                     fractal = DSCreate(FRACTAL_POWER, &rand);
@@ -152,7 +161,6 @@ int main(void) {
             }
         }
         
-    
         //Clear screen
         SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0xFF );
         SDL_RenderClear( gRenderer );
@@ -161,6 +169,8 @@ int main(void) {
             for( int xx = 0; xx < fractal->width; xx++){
     
                 SDL_Color color = alpine_gradient(0.5f, fractal->values[xx + yy * fractal->height]);
+                color = shade( color, value(gradient, xx, yy), maxval);
+
 //                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
                 drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
             }
@@ -169,7 +179,10 @@ int main(void) {
         SDL_RenderPresent( gRenderer );
     
         // wait 
-        SDL_Delay( 200 );
+//        SDL_Delay( 200 );
+		map2d * temp = thermal_erosion(fractal);
+		map2d_delete(fractal);
+		fractal = temp;
     
     }
 

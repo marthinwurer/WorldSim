@@ -22,6 +22,10 @@ void map2d_delete( map2d * toDelete );
 
 float value( map2d * ds, int x, int y);
 
+int m_index( map2d * ds, int x, int y);
+
 void map_set( map2d * ds, int x, int y, float val);
+
+void dispDS( map2d * ds );
 
 #endif /* SRC_MAP2D_H_ */

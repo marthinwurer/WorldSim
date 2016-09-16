@@ -10,9 +10,10 @@
 #include "DiamondSquare.h"
 #include "map2d.h"
 
-
+const float diagdist = 1.41421356237;
 const float diagval = 1.0/1.41421356237;
-const float mindist = 0.01;
+
+const float mindist = 0.008;
 
 // TODO: change min difference for diagonals - currently causing artifacts
 
@@ -65,7 +66,7 @@ map2d * thermal_erosion(map2d * input){
 				if(differences[ii] > maxdiff){
 					maxdiff = differences[ii];
 				}
-				if(differences[ii] > mindist){
+				if(differences[ii] > (ii % 2 ? mindist : diagdist * mindist)){
 					// ternary to save code
 					proportions[ii] = (differences[ii] - mindist) * (ii % 2 ? 1 : diagval);
 					count += proportions[ii];

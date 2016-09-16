@@ -36,6 +36,10 @@ map2d * sobel_gradient(map2d * initial, float * maxval ){
 
 			// get the final gradient value
 			float gradient = sqrtf( horizontal * horizontal + vertical * vertical );
+			// set the sign of the slope
+			if( horizontal < 0){
+				gradient *= -1.0f;
+			}
 
 			map_set( toReturn, xx, yy, gradient);
 

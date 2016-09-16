@@ -77,11 +77,16 @@ Uint8 boundify( float tobound){
 }
 
 SDL_Color shade( SDL_Color initial, float slope, float maxslope){
+	if( maxslope >  0.01){
+		maxslope = 0.01;
+	}else if(maxslope == 0){
+		maxslope = 0.000000001f;
+	}
 
 	float percent = slope / (maxslope * 2) * 0.9 + 1.0;
-	if (percent < 1.0){
-		return initial;
-	}
+//	if (percent < 1.0){
+//		return initial;
+//	}
 
 	SDL_Color toreturn = initial;
 	toreturn.r = boundify( toreturn.r * percent);

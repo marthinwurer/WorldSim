@@ -9,6 +9,13 @@
 
 #include <SDL2/SDL.h>
 
+const SDL_Color black = {0, 0, 0, 255};
+const SDL_Color blue = {0, 0, 255, 255};
+const SDL_Color green = {0, 255, 0, 255};
+const SDL_Color dgreen = {56, 124, 68, 255};
+const SDL_Color brown = {111, 78, 55, 255};
+const SDL_Color white = {255, 255, 255, 255};
+
 SDL_Color interpolate_colors( SDL_Color c1, SDL_Color c2, float fraction){
     SDL_Color toReturn = c1;
     float recip = 1.0 - fraction;
@@ -19,22 +26,20 @@ SDL_Color interpolate_colors( SDL_Color c1, SDL_Color c2, float fraction){
     return toReturn;
 }
 
+SDL_Color water_color(float sealevel, float height){
+//	return interpolate_colors(black, blue, height / sealevel);
+	return blue;
+}
+
 
 SDL_Color alpine_gradient(float sealevel, float height){
-    //                       r   g   b   a
-    static SDL_Color black = {0, 0, 0, 255};
-    static SDL_Color blue = {0, 0, 255, 255};
-    static SDL_Color green = {0, 255, 0, 255};
-    static SDL_Color dgreen = {56, 124, 68, 255};
-    static SDL_Color brown = {111, 78, 55, 255};
-    static SDL_Color white = {255, 255, 255, 255};
-
-    if( height < sealevel ){
-        return interpolate_colors(black, blue, height / sealevel);
-    }
-    else if( height < 2.0/3.0)
+//    if( height < sealevel ){
+//        return interpolate_colors(black, blue, height / sealevel);
+//    }
+//    else
+    	if( height < 2.0/3.0)
     {
-        return interpolate_colors(green, dgreen, (height - sealevel)/( 2.0/3.0 - sealevel));
+        return interpolate_colors(green, dgreen, (height)/( 2.0/3.0));
     }
     else if( height < 5.0/6.0)
     {
@@ -53,8 +58,6 @@ SDL_Color alpine_gradient(float sealevel, float height){
 }
 
 SDL_Color greyscale_gradient(float max, float current){
-    static SDL_Color black = {0, 0, 0, 255};
-    static SDL_Color white = {255, 255, 255, 255};
 
     if( current >= max){
     	return white;

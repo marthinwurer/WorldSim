@@ -22,5 +22,16 @@ static inline int mod(int a, int b)
     return r < 0 ? r + b : r;
 }
 
+static inline float min(float a, float b)
+{
+    return a > b ? b : a;
+}
+
+static inline float max(float a, float b)
+{
+    return a > b ? a : b;
+}
+
+
 
 #endif /* UTILITIES_H_ */

@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 #include <time.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 
 #include "xoroshiro128plus.h"
@@ -19,11 +21,20 @@
 #include "interpolation.h"
 #include "sobel.h"
 #include "erosion.h"
+#include "tectonics.h"
+#include "threadpool.h"
 
-const int SCREEN_WIDTH = 1024;
-const int SCREEN_HEIGHT = 1024;
+const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
+const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 9;
+const int FRACTAL_POWER = 10; // the power of two that represents the current map size
+const int NUM_THREADS = 12; // the number of threads to use in the threadpool
+
+const float MIN_WATER = 0.02; // the minimum amount of water where the tile will be seen as having water in it.
+
+rng_state_t my_rand;
+threadpool_t * thread_pool;
+
 
 int display_perspective = 0;
 int display_mode = 0;
@@ -79,28 +90,66 @@ void drawPoint(SDL_Renderer* renderer,
     SDL_RenderDrawPoint(renderer, x, y);
 }
 
+void drawRect(SDL_Renderer* renderer,
+        int           x,
+        int           y,
+        Uint8         r,
+        Uint8         g,
+        Uint8         b,
+        Uint8         a){
+    SDL_SetRenderDrawColor(renderer, r, g, b, a);
+    SDL_Rect rect = {x, y, 1, SCREEN_HEIGHT - y};
+    SDL_RenderFillRect(renderer, &rect);
+}
+
 
 int main(void) {
     time_t currtime;
-    rng_state_t rand;
 
     time(&currtime);
-    seed(&rand, (int) currtime, currtime * 3);
+    seed(&my_rand, (int) currtime, currtime * 3); // seed the RNG
+
+    struct timeval start, end;
+
+    long mtime, seconds, useconds;
+
+    gettimeofday(&start, NULL);
+    gettimeofday(&end, NULL);
+
+    seconds  = end.tv_sec  - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+
+    mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+
+    printf("Elapsed time: %ld milliseconds\n", mtime);
 
 
-    printf( "%i\n", 1/2);
+    // initialize the threadpool
+    thread_pool = threadpool_create(NUM_THREADS, NUM_THREADS*2, 0);
 
-    puts("!!!Hello World!!!"); /* prints !!!Hello World!!! */
-    printf("%u\n", (unsigned int) next(&rand));
-    printf("%u\n", (unsigned int) next(&rand));
-    printf("%u\n", (unsigned int) next(&rand));
-    printf("%u\n", (unsigned int) next(&rand));
-    printf("%u\n", (unsigned int) next(&rand));
     float maxval = 0.0;
-    map2d * fractal = DSCreate(FRACTAL_POWER, &rand);
+    map2d * fractal = DSCreate(FRACTAL_POWER, &my_rand); // the current heightmap
 //    fractal = new_map2d(fractal->width, fractal->height);
-    map2d * gradient = sobel_gradient(fractal, &maxval);
+    map2d * gradient = sobel_gradient(fractal, &maxval); // the slope of the current heightmap
     map_set(fractal, 300, 300, 100);
+	map2d * boundaries = DSCreate(FRACTAL_POWER, &my_rand); // plate boundaries
+
+	map2d * water = new_map2d(fractal->width, fractal->height); // the water map
+	map2d * rain_map = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
+
+	// calculate the sea level difference and save it in the water map
+	// directly assign those points that are less than 0.5
+	for( int yy = 0; yy < fractal->height; yy++){
+		for( int xx = 0; xx < fractal->width; xx++){
+			if( value(fractal, xx, yy) < 0.5){
+				map_set(water, xx, yy, 0.5 - value(fractal, xx, yy) );
+			}
+		}
+	}
+
+    float maxwater = evaporate(water);
+
+
 
 
     //The window we'll be rendering to
@@ -132,12 +181,11 @@ int main(void) {
     // event union
     SDL_Event event;
 
-    // the current display state
-
-
         // ENTER THE MAIN GAME LOOP
     for(;;){
-    	printf("max %f, first %f\n", maxval, gradient->values[0]);
+        gettimeofday(&start, NULL);
+
+    	printf("max %f, first %f, maxwater %f\n", maxval, gradient->values[0], maxwater);
     	fflush(stdout);
 
 
@@ -149,46 +197,144 @@ int main(void) {
                     break;
                 
                 case SDL_KEYDOWN:
-                	if(event.key.keysym.sym == SDLK_d){
-                		map2d * temp = thermal_erosion(fractal);
-                		map2d_delete(fractal);
-                		fractal = temp;
-                		break;
-                	}
-                    map2d_delete( fractal );
-                    map2d_delete( gradient);
-                    fractal = DSCreate(FRACTAL_POWER, &rand);
-                    gradient = sobel_gradient(fractal, &maxval);
+                	switch( event.key.keysym.sym){
+                	case(SDLK_d): // generate new boundaries for plates and rain.
+                		map2d_delete(boundaries);
 
-                    break;
+                		boundaries = DSCreate(FRACTAL_POWER, &my_rand);
+                		map2d_delete(rain_map);
+                		rain_map = DSCreate(FRACTAL_POWER, &my_rand);
+
+                		//                		dispDS( rain_map );
+                		//                		fflush(stdout);
+                		//                		sleep(4);
+						break;
+
+                	case(SDLK_r): // generate a new map
+						map2d_delete( fractal );
+						map2d_delete( gradient);
+						map2d_delete(water);
+						fractal = DSCreate(FRACTAL_POWER, &my_rand);
+						gradient = sobel_gradient(fractal, &maxval);
+						water = new_map2d(fractal->width, fractal->height);
+						// calculate the sea level difference and save it in the water map
+						// directly assign those points that are less than 0.5
+						for( int yy = 0; yy < fractal->height; yy++){
+							for( int xx = 0; xx < fractal->width; xx++){
+								if( value(fractal, xx, yy) < 0.5){
+									map_set(water, xx, yy, 0.5 - value(fractal, xx, yy) );
+								}
+							}
+						}
+						break;
+
+                	case(SDLK_w): // change display modes
+                		display_mode = (display_mode + 1) % 2;
+
+                	}
+                	break;
             }
         }
-        
+
         //Clear screen
         SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0xFF );
         SDL_RenderClear( gRenderer );
-    
-        for( int yy = 0; yy < fractal->height; yy++){
-            for( int xx = 0; xx < fractal->width; xx++){
-    
-                SDL_Color color = alpine_gradient(0.5f, fractal->values[xx + yy * fractal->height]);
-                color = shade( color, value(gradient, xx, yy), 0.008);
 
-//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
-                drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
-            }
+        // do the top down view
+        if( display_mode == 0){
+
+        	for( int yy = 0; yy < fractal->height; yy++){
+        		for( int xx = 0; xx < fractal->width; xx++){
+
+        			SDL_Color color;
+        			color = alpine_gradient(0.5f, fractal->values[xx + yy * fractal->height]);
+        			if( value(water, xx, yy) > MIN_WATER){
+        				color = interpolate_colors(
+        						color,
+								water_color(0.5f, value(water, xx, yy)+fractal->values[xx + yy * fractal->height]),
+								(value(water, xx, yy)/2 + .25) / 0.5);
+        			}
+        			color = shade( color, value(gradient, xx, yy), 0.008);
+
+        			//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
+        			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
+        		}
+        	}
         }
+        // do the sideways view
+        else if (display_mode == 1){
+        	int yy = 200;
+    		for( int xx = 0; xx < fractal->width; xx++){
+				int height = 0;
+    			SDL_Color color;
+
+    			// draw the water
+    			height = (value(water, xx, yy) + value(fractal, xx, yy)) * SCREEN_HEIGHT / 2;
+    			color = water_color(0.5f, 0);
+    			drawRect(gRenderer, xx,
+    					SCREEN_HEIGHT - height,
+						color.r, color.g, color.b, color.a);
+
+    			// draw the land
+    			color = alpine_gradient(0.5f, fractal->values[xx + yy * fractal->height]);
+    			height = fractal->values[xx + yy * fractal->height] * SCREEN_HEIGHT / 2;
+
+
+    			drawRect(gRenderer, xx, SCREEN_HEIGHT - height,
+    					color.r, color.g, color.b, color.a);
+    		}
+        }
+
+
+
+
         //Update screen
         SDL_RenderPresent( gRenderer );
     
         // wait 
-//        SDL_Delay( 200 );
+        SDL_Delay( 200 );
 		map2d * temp = thermal_erosion(fractal);
 		map2d_delete(fractal);
 		fractal = temp;
-        gradient = sobel_gradient(fractal, &maxval);
+		temp = sobel_gradient(fractal, &maxval);
+		map2d_delete(gradient);
+        gradient = temp;
 
-    
+        rainfall(water, rain_map);
+//        printf("afterrain\n");
+//        dispDS(water);
+        temp = water_movement(water, fractal);
+        map2d_delete(water);
+        water = temp;
+//        printf("afterflow\n");
+//        dispDS(water);
+
+        maxwater = evaporate(water);
+//        dispDS(water);
+
+
+
+
+
+        // do plate tectonics if everything has settled down.
+        if(maxval < 0.01){
+			temp = basic_tectonics(fractal, boundaries);
+			map2d_delete(fractal);
+			fractal = temp;
+			temp = sobel_gradient(fractal, &maxval);
+			map2d_delete(gradient);
+	        gradient = temp;
+        }
+
+        // get the time elapsed
+        gettimeofday(&end, NULL);
+
+        seconds  = end.tv_sec  - start.tv_sec;
+        useconds = end.tv_usec - start.tv_usec;
+
+        mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+
+        printf("Elapsed time: %ld milliseconds\n", mtime);
     }
 
     //Destroy window

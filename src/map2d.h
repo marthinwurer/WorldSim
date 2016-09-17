@@ -12,7 +12,7 @@
 typedef struct map2d_struct{
 	int height;
 	int width;
-	float * values;
+	float * restrict values;
 
 } map2d;
 

@@ -30,7 +30,7 @@ const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
 const int FRACTAL_POWER = 10; // the power of two that represents the current map size
-const int NUM_THREADS = 4; // the number of threads to use in the threadpool
+const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 const float MIN_WATER = 0.02; // the minimum amount of water where the tile will be seen as having water in it.
 
@@ -314,6 +314,10 @@ int main(void) {
         temp = water_movement(water, fractal, momentums);
         map2d_delete(water);
         water = temp;
+        temp = water_movement(water, fractal, momentums);
+        map2d_delete(water);
+        water = temp;
+
 //        printf("afterflow\n");
 //        dispDS(water);
 

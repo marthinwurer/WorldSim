@@ -69,4 +69,5 @@ void dispDS( map2d * ds ){
         }
                 printf("\n");
     }
+    fflush(stdout);
 }

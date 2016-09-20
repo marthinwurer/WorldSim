@@ -14,6 +14,8 @@ float evaporate(map2d * input);
 
 void rainfall(map2d * input, map2d * rain_map);
 
-map2d * water_movement(map2d * water, map2d * height);
+map2d ** water_pipes(int x_dim, int y_dim);
+
+map2d * water_movement(map2d * water, map2d * height, map2d ** momentums);
 
 #endif /* SRC_EROSION_H_ */

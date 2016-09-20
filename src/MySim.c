@@ -24,11 +24,13 @@
 #include "tectonics.h"
 #include "threadpool.h"
 
+#define RENDER_SCREEN
+
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
 const int FRACTAL_POWER = 10; // the power of two that represents the current map size
-const int NUM_THREADS = 12; // the number of threads to use in the threadpool
+const int NUM_THREADS = 4; // the number of threads to use in the threadpool
 
 const float MIN_WATER = 0.02; // the minimum amount of water where the tile will be seen as having water in it.
 
@@ -131,7 +133,7 @@ int main(void) {
     map2d * fractal = DSCreate(FRACTAL_POWER, &my_rand); // the current heightmap
 //    fractal = new_map2d(fractal->width, fractal->height);
     map2d * gradient = sobel_gradient(fractal, &maxval); // the slope of the current heightmap
-    map_set(fractal, 300, 300, 100);
+//    map_set(fractal, 300, 300, 100);
 	map2d * boundaries = DSCreate(FRACTAL_POWER, &my_rand); // plate boundaries
 
 	map2d * water = new_map2d(fractal->width, fractal->height); // the water map
@@ -149,9 +151,12 @@ int main(void) {
 
     float maxwater = evaporate(water);
 
+    map2d ** momentums = water_pipes(fractal->width, fractal->width);
 
 
 
+
+#ifdef RENDER_SCREEN
     //The window we'll be rendering to
     SDL_Window* window = NULL;
 
@@ -180,6 +185,7 @@ int main(void) {
 
     // event union
     SDL_Event event;
+#endif
 
         // ENTER THE MAIN GAME LOOP
     for(;;){
@@ -188,7 +194,7 @@ int main(void) {
     	printf("max %f, first %f, maxwater %f\n", maxval, gradient->values[0], maxwater);
     	fflush(stdout);
 
-
+#ifdef RENDER_SCREEN
         // process all events in the queue.
         while( SDL_PollEvent( &event )){
             switch( event.type){
@@ -239,6 +245,7 @@ int main(void) {
         //Clear screen
         SDL_SetRenderDrawColor( gRenderer, 0, 0, 0, 0xFF );
         SDL_RenderClear( gRenderer );
+
 
         // do the top down view
         if( display_mode == 0){
@@ -292,7 +299,8 @@ int main(void) {
         SDL_RenderPresent( gRenderer );
     
         // wait 
-        SDL_Delay( 200 );
+//        SDL_Delay( 1000 );
+#endif
 		map2d * temp = thermal_erosion(fractal);
 		map2d_delete(fractal);
 		fractal = temp;
@@ -303,7 +311,7 @@ int main(void) {
         rainfall(water, rain_map);
 //        printf("afterrain\n");
 //        dispDS(water);
-        temp = water_movement(water, fractal);
+        temp = water_movement(water, fractal, momentums);
         map2d_delete(water);
         water = temp;
 //        printf("afterflow\n");
@@ -324,6 +332,15 @@ int main(void) {
 			temp = sobel_gradient(fractal, &maxval);
 			map2d_delete(gradient);
 	        gradient = temp;
+
+	        // then run two iterations of the thermal erosion algorithm.
+			temp = thermal_erosion(fractal);
+			map2d_delete(fractal);
+			fractal = temp;
+			temp = thermal_erosion(fractal);
+			map2d_delete(fractal);
+			fractal = temp;
+
         }
 
         // get the time elapsed
@@ -336,13 +353,13 @@ int main(void) {
 
         printf("Elapsed time: %ld milliseconds\n", mtime);
     }
-
+#ifdef RENDER_SCREEN
     //Destroy window
     SDL_DestroyWindow( window );
 
     //Quit SDL subsystems
     SDL_Quit();
-
+#endif
     return 0;
 }
 

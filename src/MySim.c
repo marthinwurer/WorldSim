@@ -138,6 +138,9 @@ int main(void) {
 
 	map2d * water = new_map2d(fractal->width, fractal->height); // the water map
 	map2d * rain_map = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
+	map2d * water_gradient = sobel_gradient(fractal, &maxval); // water gradient (show waves
+
+	rainfall(water, rain_map);
 
 	// calculate the sea level difference and save it in the water map
 	// directly assign those points that are less than 0.5
@@ -151,9 +154,11 @@ int main(void) {
 
     float maxwater = evaporate(water);
 
+    map2d ** velocities = water_pipes(fractal->width, fractal->width);
     map2d ** momentums = water_pipes(fractal->width, fractal->width);
 
 
+    int tectonics = 0;
 
 
 #ifdef RENDER_SCREEN
@@ -211,6 +216,7 @@ int main(void) {
                 		map2d_delete(rain_map);
                 		rain_map = DSCreate(FRACTAL_POWER, &my_rand);
 
+//                		map_set(water,200, 200, 1);
                 		//                		dispDS( rain_map );
                 		//                		fflush(stdout);
                 		//                		sleep(4);
@@ -236,6 +242,10 @@ int main(void) {
 
                 	case(SDLK_w): // change display modes
                 		display_mode = (display_mode + 1) % 2;
+                	break;
+
+                	case(SDLK_t):
+                			tectonics = 1;
 
                 	}
                 	break;
@@ -261,7 +271,9 @@ int main(void) {
 								water_color(0.5f, value(water, xx, yy)+fractal->values[xx + yy * fractal->height]),
 								(value(water, xx, yy)/2 + .25) / 0.5);
         			}
-        			color = shade( color, value(gradient, xx, yy), 0.008);
+//        			else{
+        				color = shade( color, value(gradient, xx, yy), 0.008);
+//        			}
 
         			//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
         			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
@@ -291,6 +303,21 @@ int main(void) {
     					color.r, color.g, color.b, color.a);
     		}
         }
+        // do water height map
+        else if( display_mode == 3){
+
+        	for( int yy = 0; yy < fractal->height; yy++){
+        		for( int xx = 0; xx < fractal->width; xx++){
+
+        			SDL_Color color;
+        			color = alpine_gradient(0.5f, water->values[xx + yy * fractal->height]);
+        			color = shade( color, value(gradient, xx, yy), 0.008);
+
+        			//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
+        			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
+        		}
+        	}
+        }
 
 
 
@@ -311,12 +338,12 @@ int main(void) {
         rainfall(water, rain_map);
 //        printf("afterrain\n");
 //        dispDS(water);
-        temp = water_movement(water, fractal, momentums);
+        temp = water_movement(water, fractal, momentums, velocities);
         map2d_delete(water);
         water = temp;
-        temp = water_movement(water, fractal, momentums);
-        map2d_delete(water);
-        water = temp;
+//        temp = water_movement(water, fractal, momentums);
+//        map2d_delete(water);
+//        water = temp;
 
 //        printf("afterflow\n");
 //        dispDS(water);
@@ -329,7 +356,8 @@ int main(void) {
 
 
         // do plate tectonics if everything has settled down.
-        if(maxval < 0.01){
+//        if(maxval < 0.01){
+        if( tectonics){
 			temp = basic_tectonics(fractal, boundaries);
 			map2d_delete(fractal);
 			fractal = temp;
@@ -345,6 +373,7 @@ int main(void) {
 			map2d_delete(fractal);
 			fractal = temp;
 
+			tectonics = 0;
         }
 
         // get the time elapsed

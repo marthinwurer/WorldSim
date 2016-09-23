@@ -19,7 +19,7 @@ const float diagval = 1.0/1.41421356237;
 
 const float mindist = 0.008;
 
-const float RAIN_CONSTANT = 0.008;
+const float RAIN_CONSTANT = 0.004;
 
 extern const int NUM_THREADS;
 extern threadpool_t * thread_pool;
@@ -234,7 +234,7 @@ float evaporate(map2d * input){
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
-			input->values[ii] -= RAIN_CONSTANT * 1.001f;
+			input->values[ii] -= RAIN_CONSTANT * 1.05f;
 
 			input->values[ii] = max(input->values[ii], 0.0);
 
@@ -281,8 +281,9 @@ map2d ** water_pipes(int x_dim, int y_dim){
 struct water_poolpram_s{
 	map2d *restrict water;
 	map2d *restrict height;
-	map2d **restrict pipes;
-	map2d **restrict momentums;
+	map2d *restrict*restrict pipes;
+	map2d *restrict*restrict velocities;
+	map2d *restrict*restrict momentums;
 	map2d *restrict toReturn;
 	int offset;
 	int increment;
@@ -332,8 +333,7 @@ void water_thread( void * arg){
 			for( int ii = 0; ii < WATER_INDEXES; ii++){
 
 				// compute the momentum that will be applied to the current tile
-				m_dir[ii] = min(param->momentums[ii]->values[currindex] * currwater, RAIN_CONSTANT);
-				totalmomentum += m_dir[ii];
+				m_dir[ii] = param->momentums[ii]->values[indexes[ii]] *.99;
 
 				// calculate the difference in that direction.
 				differences[ii] = current - (param->water->values[indexes[ii]] + param->height->values[indexes[ii]]);
@@ -348,6 +348,15 @@ void water_thread( void * arg){
 				else{
 					proportions[ii] = 0;
 				}
+
+				// apply the acceleration to the velocity/momentum
+				m_dir[ii] += differences[ii] * .1;
+				m_dir[ii] = max( m_dir[ii], 0); // minimum is zero
+//				m_dir[ii] = min( m_dir[ii], 100); // maximum velocity - hopefully stops massive resonaces
+//				if( m_dir[ii] > RAIN_CONSTANT){
+//					m_dir[ii] = RAIN_CONSTANT;
+//				}
+				totalmomentum += m_dir[ii];
 			}
 
 			// test for the case of none being moved (too low of angle)
@@ -356,23 +365,22 @@ void water_thread( void * arg){
 			}
 
 			// calculate the total to be moved.
-			float total = min( currwater, maxdiff/2);
-			float left = currwater - total;
+			float left = currwater;
 			float totalmoved = 0;
 
 
-			// move that proportion to that tile.
-			for( int ii = 0; ii < WATER_INDEXES; ii++){
-				float tomove = 0;
-				if( count != 0){
-					tomove = total * (proportions[ii]/count);
-				}
-				// assign it to the pipe
-				param->pipes[ii]->values[indexes[ii]] = tomove;
-				totalmoved += tomove;
-			}
+//			// move that proportion to that tile.
+//			for( int ii = 0; ii < WATER_INDEXES; ii++){
+//				float tomove = 0;
+//				if( count != 0){
+//					tomove = total * (proportions[ii]/count);
+//				}
+//				// assign it to the pipe
+//				param->pipes[ii]->values[indexes[ii]] = tomove;
+//				totalmoved += tomove;
+//			}
 
-			left = currwater - totalmoved;
+//			left = currwater - totalmoved;
 			totalmoved = 0;
 
 			// do the momentum movement
@@ -387,8 +395,12 @@ void water_thread( void * arg){
 				for( int ii = 0; ii < WATER_INDEXES; ii++){
 					// calculate the amount moved
 					float tomove = m_dir[ii] * proportion;
+
+					// compute the velocity at the base of the water column
+					param->velocities[ii]->values[currindex] = tomove;
 					// assign it to the pipe
-					param->pipes[ii]->values[indexes[ii]] += tomove;
+
+					param->pipes[ii]->values[indexes[ii]] = tomove;
 					totalmoved += tomove;
 				}
 				left -= totalmoved;
@@ -433,7 +445,7 @@ void water_thread( void * arg){
  *
  * Modifies the momentums pointer. clears all of the old maps
  */
-map2d * water_movement(map2d * restrict water, map2d * restrict height, map2d ** momentums){
+map2d * water_movement(map2d * restrict water, map2d * restrict height, map2d ** momentums, map2d ** velocities){
 
 	// make a new map to return.
 	map2d * toReturn = new_map2d(water->width, water->height);
@@ -455,6 +467,7 @@ map2d * water_movement(map2d * restrict water, map2d * restrict height, map2d **
 		pool_data[ii]->water = water;
 		pool_data[ii]->height = height;
 		pool_data[ii]->pipes = pipes;
+		pool_data[ii]->velocities = velocities;
 		pool_data[ii]->momentums = momentums;
 		pool_data[ii]->toReturn = toReturn;
 		pool_data[ii]->offset = ii;
@@ -494,115 +507,6 @@ map2d * water_movement(map2d * restrict water, map2d * restrict height, map2d **
 
 #endif
 
-
-
-
-//	// loop through all the positions on the board
-//	for( int yy = 0; yy < water->height; yy ++){
-//		for( int xx = 0; xx < water->width; xx++){
-//			// get the values of all the neighboring cells
-//			// 0 1 2
-//			// 7 x 3
-//			// 6 5 4
-//			float currwater = value(water, xx, yy);
-//			float currheight = value(height, xx, yy);
-//			float current = currwater + currheight;
-//			int currindex = m_index(water, xx, yy);
-//
-//			int indexes[WATER_INDEXES];
-//			indexes[0] = m_index(water, xx, yy - 1);
-//			indexes[1] = m_index(water, xx + 1, yy);
-//			indexes[2] = m_index(water, xx, yy + 1);
-//			indexes[3] = m_index(water, xx - 1, yy);
-//
-//			float differences[WATER_INDEXES];
-//			float m_dir[WATER_INDEXES];  // the momentum in that direction
-//			float proportions[WATER_INDEXES];
-//			float maxdiff = 0;
-//			float count = 0;
-//
-//			float totalmomentum = 0;
-//			// compute the differences and also store the max difference
-//			// count the number of lower neighbors there are with weights
-//			for( int ii = 0; ii < WATER_INDEXES; ii++){
-//
-//				// compute the momentum that will be applied to the current tile
-//				m_dir[ii] = min(momentums[ii]->values[currindex] * currwater, 1);
-//				totalmomentum += m_dir[ii];
-//
-//				// calculate the difference in that direction.
-//				differences[ii] = current - (water->values[indexes[ii]] + height->values[indexes[ii]]);
-//				if(differences[ii] > maxdiff){
-//					maxdiff = differences[ii];
-//				}
-//				if(differences[ii] > 0){
-//					// ternary to save code
-//					proportions[ii] = (differences[ii]) ;
-//					count += proportions[ii];
-//				}
-//				else{
-//					proportions[ii] = 0;
-//				}
-//			}
-//
-//			// test for the case of none being moved (too low of angle)
-//			if(count == 0){
-//				maxdiff = 0;
-//			}
-//
-//			// calculate the total to be moved.
-//			float total = min( currwater, maxdiff/2);
-//			float left = currwater - total;
-//			float totalmoved = 0;
-//
-//
-//			// move that proportion to that tile.
-//			for( int ii = 0; ii < WATER_INDEXES; ii++){
-//				float tomove = 0;
-//				if( count != 0){
-//					tomove = total * (proportions[ii]/count);
-//				}
-//				// assign it to the pipe
-//				pipes[ii]->values[indexes[ii]] = tomove;
-//				totalmoved += tomove;
-//			}
-//
-//			left = currwater - totalmoved;
-//			totalmoved = 0;
-//
-//			// do the momentum movement
-//			if( left > 0 && totalmomentum > 0){
-//				float proportion = 1;
-//				if( left < totalmomentum){
-//					proportion = left / totalmomentum;
-////					printf("lessleft ");
-//				}
-//
-//				// move that proportion to that tile.
-//				for( int ii = 0; ii < WATER_INDEXES; ii++){
-//					// calculate the amount moved
-//					float tomove = m_dir[ii] * proportion;
-//					// assign it to the pipe
-//					pipes[ii]->values[indexes[ii]] += tomove;
-//					totalmoved += tomove;
-//				}
-//				left -= totalmoved;
-//
-//				if(left < 0){
-//					left = 0;
-////					printf( "moved: %f\n", left - totalmoved);
-//				}
-//			}
-//
-//
-//			// remove the moved volume
-//			map_set(toReturn, xx, yy, left);
-//
-//		}
-//	}
-//
-////	dispDS(pipes[0]);
-//
 	// reduce part of map-reduce
 	for( int yy = 0; yy < water->height; yy++){
 		for( int xx = 0; xx < water->width; xx++){

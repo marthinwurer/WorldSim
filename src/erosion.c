@@ -19,7 +19,7 @@ const float diagval = 1.0/1.41421356237;
 
 const float mindist = 0.008;
 
-const float RAIN_CONSTANT = 0.004;
+const float RAIN_CONSTANT = 0.001;
 
 extern const int NUM_THREADS;
 extern threadpool_t * thread_pool;
@@ -234,7 +234,7 @@ float evaporate(map2d * input){
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
-			input->values[ii] -= RAIN_CONSTANT * 1.05f;
+			input->values[ii] -= RAIN_CONSTANT * 1.1f;
 
 			input->values[ii] = max(input->values[ii], 0.0);
 
@@ -333,7 +333,7 @@ void water_thread( void * arg){
 			for( int ii = 0; ii < WATER_INDEXES; ii++){
 
 				// compute the momentum that will be applied to the current tile
-				m_dir[ii] = param->momentums[ii]->values[indexes[ii]] *.99;
+				m_dir[ii] = param->momentums[ii]->values[indexes[ii]] *.95;
 
 				// calculate the difference in that direction.
 				differences[ii] = current - (param->water->values[indexes[ii]] + param->height->values[indexes[ii]]);
@@ -367,21 +367,6 @@ void water_thread( void * arg){
 			// calculate the total to be moved.
 			float left = currwater;
 			float totalmoved = 0;
-
-
-//			// move that proportion to that tile.
-//			for( int ii = 0; ii < WATER_INDEXES; ii++){
-//				float tomove = 0;
-//				if( count != 0){
-//					tomove = total * (proportions[ii]/count);
-//				}
-//				// assign it to the pipe
-//				param->pipes[ii]->values[indexes[ii]] = tomove;
-//				totalmoved += tomove;
-//			}
-
-//			left = currwater - totalmoved;
-			totalmoved = 0;
 
 			// do the momentum movement
 			if( left > 0 && totalmomentum > 0){
@@ -531,3 +516,108 @@ map2d * water_movement(map2d * restrict water, map2d * restrict height, map2d **
 	return toReturn;
 }
 //#endif
+
+
+
+
+
+
+
+
+/*
+ * Compute the hydraulic erosion
+ */
+map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocities){
+
+	// make a new map to return.
+	map2d * toReturn = new_map2d(heightmap->width, heightmap->height);
+
+	// make an array of eight pointers to each of the pipes.
+	map2d ** pipes = malloc( 8 * sizeof( map2d *));
+
+	// make all the pipes
+	for( int ii = 0; ii < 8; ii++)
+	{
+		pipes[ii] = new_map2d(heightmap->width, heightmap->height);
+	}
+
+
+	for( int yy = 0; yy < heightmap->height; yy ++){
+		for( int xx = 0; xx < heightmap->width; xx++){
+			// get the values of all the neighboring cells
+			// 0 1 2
+			// 7 x 3
+			// 6 5 4
+			float current = value(heightmap, xx, yy);
+			int currindex = m_index(heightmap, xx, yy);
+			float currwater = watermap->values[currindex];
+			int indexes[8];
+			float values[8];
+			indexes[0] = m_index(heightmap, xx - 1, yy - 1);
+			indexes[1] = m_index(heightmap, xx, yy - 1);
+			indexes[2] = m_index(heightmap, xx + 1, yy - 1);
+			indexes[3] = m_index(heightmap, xx + 1, yy);
+			indexes[4] = m_index(heightmap, xx + 1, yy + 1);
+			indexes[5] = m_index(heightmap, xx, yy + 1);
+			indexes[6] = m_index(heightmap, xx - 1, yy + 1);
+			indexes[7] = m_index(heightmap, xx - 1, yy);
+
+			// count the total amount being moved
+			float total = 0;
+			for( int ii = 0; ii < 8; ii++){
+				float tomove = velocities[ii]->values[currindex];
+				values[ii] = tomove * (0.5-currwater) * (0.5-currwater) * 0.1;
+				total += values[ii];
+			}
+
+			float proportion = min(current / total, 1.0);
+			float totalmoved = 0;
+
+			// move that proportion to that tile.
+			for( int ii = 0; ii < 8; ii++){
+				float tomove = 0;
+				tomove = total * proportion;
+				// assign it to the pipe
+				pipes[ii]->values[indexes[ii]] = tomove;
+				totalmoved += tomove;
+			}
+
+			float left = current - totalmoved;
+
+
+			// remove the moved volume
+			map_set(toReturn, xx, yy, left);
+
+		}
+	}
+
+
+	// reduce part of map-reduce
+	for( int yy = 0; yy < heightmap->height; yy++){
+		for( int xx = 0; xx < heightmap->width; xx++){
+			// get the current value
+			float current = value(toReturn, xx, yy);
+			// add the pipe values to it
+			for( int ii = 0; ii < 8; ii ++){
+				current += value(pipes[ii], xx, yy);
+			}
+			// assign it back
+			map_set(toReturn, xx, yy, current);
+		}
+	}
+
+	//free everything
+	for( int ii = 0; ii < 8; ii++){
+		map2d_delete(pipes[ii]);
+	}
+	free( pipes);
+
+	return toReturn;
+
+}
+
+
+
+
+
+

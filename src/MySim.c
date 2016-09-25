@@ -23,6 +23,7 @@
 #include "erosion.h"
 #include "tectonics.h"
 #include "threadpool.h"
+#include "utilities.h"
 
 #define RENDER_SCREEN
 
@@ -137,6 +138,7 @@ int main(void) {
 	map2d * boundaries = DSCreate(FRACTAL_POWER, &my_rand); // plate boundaries
 
 	map2d * water = new_map2d(fractal->width, fractal->height); // the water map
+    map2d * oldwatermap = new_map2d(fractal->width, fractal->height);
 	map2d * rain_map = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
 	map2d * water_gradient = sobel_gradient(fractal, &maxval); // water gradient (show waves
 
@@ -153,6 +155,8 @@ int main(void) {
 	}
 
     float maxwater = evaporate(water);
+	float watermax = 0;
+
 
     map2d ** velocities = water_pipes(fractal->width, fractal->width);
     map2d ** momentums = water_pipes(fractal->width, fractal->width);
@@ -196,7 +200,7 @@ int main(void) {
     for(;;){
         gettimeofday(&start, NULL);
 
-    	printf("max %f, first %f, maxwater %f\n", maxval, gradient->values[0], maxwater);
+    	printf("max %f, first %f, maxwater %f, v %f\n", maxval, gradient->values[0], maxwater, watermax);
     	fflush(stdout);
 
 #ifdef RENDER_SCREEN
@@ -226,6 +230,7 @@ int main(void) {
 						map2d_delete( fractal );
 						map2d_delete( gradient);
 						map2d_delete(water);
+
 						fractal = DSCreate(FRACTAL_POWER, &my_rand);
 						gradient = sobel_gradient(fractal, &maxval);
 						water = new_map2d(fractal->width, fractal->height);
@@ -238,10 +243,11 @@ int main(void) {
 								}
 							}
 						}
+
 						break;
 
                 	case(SDLK_w): // change display modes
-                		display_mode = (display_mode + 1) % 2;
+                		display_mode = (display_mode + 1) % 3;
                 	break;
 
                 	case(SDLK_t):
@@ -303,20 +309,36 @@ int main(void) {
     					color.r, color.g, color.b, color.a);
     		}
         }
-        // do water height map
-        else if( display_mode == 3){
+        // do water velocity
+        else if( display_mode == 2){
+        	watermax = 0;
+        	map2d * watervelocity = new_map2d(fractal->width, fractal->height);
 
         	for( int yy = 0; yy < fractal->height; yy++){
         		for( int xx = 0; xx < fractal->width; xx++){
 
-        			SDL_Color color;
-        			color = alpine_gradient(0.5f, water->values[xx + yy * fractal->height]);
-        			color = shade( color, value(gradient, xx, yy), 0.008);
+        			// sum the water velocity
+        			float vel = 0;
+        			for( int ii = 0; ii < 8; ii++){
+        				vel += velocities[ii]->values[xx + yy * fractal->height];
+        			}
+        			watervelocity->values[xx + yy * fractal->height] = vel;
 
-        			//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
+        			watermax = max(vel, watermax);
+        		}
+        	}
+
+        	for( int yy = 0; yy < fractal->height; yy++){
+        		for( int xx = 0; xx < fractal->width; xx++){
+
+        			float weight = 0.025;
+
+        			SDL_Color color;
+        			color = greyscale_gradient( weight, watervelocity->values[xx + yy * fractal->height]);
         			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
         		}
         	}
+        	map2d_delete(watervelocity);
         }
 
 
@@ -324,11 +346,10 @@ int main(void) {
 
         //Update screen
         SDL_RenderPresent( gRenderer );
-    
-        // wait 
-//        SDL_Delay( 1000 );
+
 #endif
-		map2d * temp = thermal_erosion(fractal);
+        map2d * temp;
+		temp = thermal_erosion(fractal);
 		map2d_delete(fractal);
 		fractal = temp;
 		temp = sobel_gradient(fractal, &maxval);
@@ -336,17 +357,16 @@ int main(void) {
         gradient = temp;
 
         rainfall(water, rain_map);
-//        printf("afterrain\n");
-//        dispDS(water);
-        temp = water_movement(water, fractal, momentums, velocities);
-        map2d_delete(water);
-        water = temp;
-//        temp = water_movement(water, fractal, momentums);
-//        map2d_delete(water);
-//        water = temp;
 
-//        printf("afterflow\n");
-//        dispDS(water);
+        temp = water_movement(water, fractal, momentums, velocities);
+        map2d_delete(oldwatermap);
+        oldwatermap = water;
+        water = temp;
+
+		temp = hydraulic_erosion(fractal, oldwatermap, velocities);
+		map2d_delete(fractal);
+		fractal = temp;
+
 
         maxwater = evaporate(water);
 //        dispDS(water);

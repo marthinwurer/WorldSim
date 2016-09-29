@@ -33,7 +33,7 @@ const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 const int FRACTAL_POWER = 10; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
-const float MIN_WATER = 0.02; // the minimum amount of water where the tile will be seen as having water in it.
+const float MIN_WATER = 0.004; // the minimum amount of water where the tile will be seen as having water in it.
 
 rng_state_t my_rand;
 threadpool_t * thread_pool;
@@ -142,17 +142,22 @@ int main(void) {
 	map2d * rain_map = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
 	map2d * water_gradient = sobel_gradient(fractal, &maxval); // water gradient (show waves
 
-	rainfall(water, rain_map);
 
+	// process all of the map tiles
 	// calculate the sea level difference and save it in the water map
 	// directly assign those points that are less than 0.5
 	for( int yy = 0; yy < fractal->height; yy++){
 		for( int xx = 0; xx < fractal->width; xx++){
+			float val = value(fractal, xx, yy);
+//			val = val * val;
+//			map_set(fractal, xx, yy, xx/1024.0 + val/512.0);
+//			map_set(rain_map, xx, yy, xx/1024.0);
 			if( value(fractal, xx, yy) < 0.5){
 				map_set(water, xx, yy, 0.5 - value(fractal, xx, yy) );
 			}
 		}
 	}
+	map_set(fractal, 300, 300, 0.0);
 
     float maxwater = evaporate(water);
 	float watermax = 0;
@@ -163,6 +168,8 @@ int main(void) {
 
 
     int tectonics = 0;
+
+    int count = 0;
 
 
 #ifdef RENDER_SCREEN
@@ -200,7 +207,7 @@ int main(void) {
     for(;;){
         gettimeofday(&start, NULL);
 
-    	printf("max %f, first %f, maxwater %f, v %f\n", maxval, gradient->values[0], maxwater, watermax);
+    	printf("iteration %d, max %f, first %f, maxwater %f, v %f\n",count, maxval, gradient->values[0], maxwater, watermax);
     	fflush(stdout);
 
 #ifdef RENDER_SCREEN
@@ -356,7 +363,9 @@ int main(void) {
 		map2d_delete(gradient);
         gradient = temp;
 
-        rainfall(water, rain_map);
+//        if (count % 4){
+        	rainfall(water, rain_map);
+//        }
 
         temp = water_movement(water, fractal, momentums, velocities);
         map2d_delete(oldwatermap);
@@ -367,8 +376,9 @@ int main(void) {
 		map2d_delete(fractal);
 		fractal = temp;
 
-
-        maxwater = evaporate(water);
+//        if (count % 4 == 3){
+        	maxwater = evaporate(water);
+//        }
 //        dispDS(water);
 
 
@@ -405,6 +415,7 @@ int main(void) {
         mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
         printf("Elapsed time: %ld milliseconds\n", mtime);
+        count ++;
     }
 #ifdef RENDER_SCREEN
     //Destroy window

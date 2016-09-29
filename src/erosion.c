@@ -19,7 +19,7 @@ const float diagval = 1.0/1.41421356237;
 
 const float mindist = 0.008;
 
-const float RAIN_CONSTANT = 0.001;
+const float RAIN_CONSTANT = 0.0005;
 
 extern const int NUM_THREADS;
 extern threadpool_t * thread_pool;
@@ -255,7 +255,7 @@ void rainfall(map2d *restrict input, map2d *restrict rain_map){
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
-			input->values[ii] = input->values[ii] + RAIN_CONSTANT;
+			input->values[ii] = input->values[ii] + (RAIN_CONSTANT * 1.1 * rain_map->values[ii]);
 		}
 	}
 }
@@ -566,7 +566,12 @@ map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocit
 			float total = 0;
 			for( int ii = 0; ii < 8; ii++){
 				float tomove = velocities[ii]->values[currindex];
-				values[ii] = tomove * (0.5-currwater) * (0.5-currwater) * 0.1;
+				if( currwater < 0.01){
+				values[ii] = min (tomove  * 0.05, RAIN_CONSTANT * 0.02); //* (0.5-currwater) * (0.5-currwater)
+				}
+				else{
+					values[ii] = 0;
+				}
 				total += values[ii];
 			}
 

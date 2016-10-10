@@ -19,7 +19,9 @@ const float diagval = 1.0/1.41421356237;
 
 const float mindist = 0.008;
 
-const float RAIN_CONSTANT = 0.0005;
+const float RAIN_CONSTANT = 1.0/1024.0/365.0;
+const float HYDRAULIC_EROSION_CONSTANT = 0.01;
+const float MOMEMTUM_CONSTANT = 0.95;
 
 extern const int NUM_THREADS;
 extern threadpool_t * thread_pool;
@@ -27,12 +29,33 @@ extern threadpool_t * thread_pool;
 // a struct to be passed into the threadpool
 struct poolpram_s{
 	map2d *restrict input;
+	map2d *restrict water;
 	map2d **restrict pipes;
 	map2d *restrict toReturn;
 	int offset;
 	int increment;
 	int done;
 };
+
+/**
+ * A function to calculate the indexes for a cell's neighbors.
+ * Assumes that the arrays have 8 indexes.
+ * 0 1 2
+ * 7 x 3
+ * 6 5 4
+ *
+ * modifies the indexes array
+ */
+void calculate_indexes(int * indexes, int xx, int yy, map2d * index_into ){
+	indexes[0] = m_index(index_into, xx - 1, yy - 1);
+	indexes[1] = m_index(index_into, xx, yy - 1);
+	indexes[2] = m_index(index_into, xx + 1, yy - 1);
+	indexes[3] = m_index(index_into, xx + 1, yy);
+	indexes[4] = m_index(index_into, xx + 1, yy + 1);
+	indexes[5] = m_index(index_into, xx, yy + 1);
+	indexes[6] = m_index(index_into, xx - 1, yy + 1);
+	indexes[7] = m_index(index_into, xx - 1, yy);
+}
 
 /**
  * function to actually do the erosion to make everything restrict
@@ -54,16 +77,19 @@ void erode_thread( void * arg){
 			// 0 1 2
 			// 7 x 3
 			// 6 5 4
+			int currindex = m_index(param->input, xx, yy);
 			float current = value(param->input, xx, yy);
 			int indexes[8];
-			indexes[0] = m_index(param->input, xx - 1, yy - 1);
-			indexes[1] = m_index(param->input, xx, yy - 1);
-			indexes[2] = m_index(param->input, xx + 1, yy - 1);
-			indexes[3] = m_index(param->input, xx + 1, yy);
-			indexes[4] = m_index(param->input, xx + 1, yy + 1);
-			indexes[5] = m_index(param->input, xx, yy + 1);
-			indexes[6] = m_index(param->input, xx - 1, yy + 1);
-			indexes[7] = m_index(param->input, xx - 1, yy);
+			calculate_indexes(indexes, xx, yy, param->water);
+
+//			indexes[0] = m_index(param->input, xx - 1, yy - 1);
+//			indexes[1] = m_index(param->input, xx, yy - 1);
+//			indexes[2] = m_index(param->input, xx + 1, yy - 1);
+//			indexes[3] = m_index(param->input, xx + 1, yy);
+//			indexes[4] = m_index(param->input, xx + 1, yy + 1);
+//			indexes[5] = m_index(param->input, xx, yy + 1);
+//			indexes[6] = m_index(param->input, xx - 1, yy + 1);
+//			indexes[7] = m_index(param->input, xx - 1, yy);
 
 			float differences[8];
 			float proportions[8];
@@ -113,6 +139,11 @@ void erode_thread( void * arg){
 			// remove the moved volume
 			map_set(param->toReturn, xx, yy, left);
 
+			/* add that much water - there has to have been that much water that moved,
+			 * so there will be that much available to take.
+			 */
+//			param ->water->values[currindex] += totalmoved;
+
 		}
 	}
 
@@ -137,7 +168,7 @@ void erode_thread( void * arg){
 /**
  * do the basic thermal erosion algorithm as described in Balazs Jako's paper.
  */
-map2d * thermal_erosion(map2d * input){
+map2d * thermal_erosion(map2d * restrict input, map2d * restrict water){
 	// make a new map to return.
 	map2d * toReturn = new_map2d(input->width, input->height);
 
@@ -162,6 +193,7 @@ map2d * thermal_erosion(map2d * input){
 		pool_data[ii] = malloc( sizeof( struct poolpram_s));
 		pool_data[ii]->done = 0;
 		pool_data[ii]->input = input;
+		pool_data[ii]->water = water;
 		pool_data[ii]->pipes = pipes;
 		pool_data[ii]->toReturn = toReturn;
 		pool_data[ii]->offset = ii;
@@ -203,14 +235,17 @@ map2d * thermal_erosion(map2d * input){
 	// reduce part of map-reduce
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
-			// get the current value
-			float current = value(toReturn, xx, yy);
+			// get the current index
+			int currindex = m_index(input, xx, yy);
 			// add the pipe values to it
+			float total = 0.0;
 			for( int ii = 0; ii < 8; ii ++){
-				current += value(pipes[ii], xx, yy);
+				total += pipes[ii]->values[currindex];
 			}
 			// assign it back
-			map_set(toReturn, xx, yy, current);
+			toReturn->values[currindex] += total;
+			// subtract that much water
+//			water->values[currindex] -= total;
 		}
 	}
 
@@ -229,20 +264,24 @@ map2d * thermal_erosion(map2d * input){
  *
  * MODIFIES THE INPUT
  */
-float evaporate(map2d * input){
+float evaporate(map2d * input, float * removed){
 	float maxval = 0.0;
+	float totalRemoved = 0;
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
-			input->values[ii] -= RAIN_CONSTANT * 1.1f;
 
-			input->values[ii] = max(input->values[ii], 0.0);
+			float tomove = min(RAIN_CONSTANT * 1.1f, input->values[ii]);
+
+			input->values[ii] -= tomove;
 
 			if( input->values[ii] > maxval){
 				maxval = input->values[ii];
 			}
+			totalRemoved += tomove;
 		}
 	}
+	*removed = totalRemoved;
 	return maxval;
 }
 
@@ -251,11 +290,12 @@ float evaporate(map2d * input){
  *
  * MODIFIES THE INPUT
  */
-void rainfall(map2d *restrict input, map2d *restrict rain_map){
+void rainfall(map2d *restrict input, map2d *restrict rain_map, float evaporated){
+	float rain_per = evaporated / ( input->height * input->width);
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
-			input->values[ii] = input->values[ii] + (RAIN_CONSTANT * 1.1 * rain_map->values[ii]);
+			input->values[ii] = input->values[ii] + (RAIN_CONSTANT ); //* 1.1 * rain_map->values[ii]
 		}
 	}
 }
@@ -312,14 +352,7 @@ void water_thread( void * arg){
 //			indexes[1] = m_index(param->water, xx + 1, yy);
 //			indexes[2] = m_index(param->water, xx, yy + 1);
 //			indexes[3] = m_index(param->water, xx - 1, yy);
-			indexes[0] = m_index(param->water, xx - 1, yy - 1);
-			indexes[1] = m_index(param->water, xx, yy - 1);
-			indexes[2] = m_index(param->water, xx + 1, yy - 1);
-			indexes[3] = m_index(param->water, xx + 1, yy);
-			indexes[4] = m_index(param->water, xx + 1, yy + 1);
-			indexes[5] = m_index(param->water, xx, yy + 1);
-			indexes[6] = m_index(param->water, xx - 1, yy + 1);
-			indexes[7] = m_index(param->water, xx - 1, yy);
+			calculate_indexes(indexes, xx, yy, param->water);
 
 			float differences[WATER_INDEXES];
 			float m_dir[WATER_INDEXES];  // the momentum in that direction
@@ -333,7 +366,7 @@ void water_thread( void * arg){
 			for( int ii = 0; ii < WATER_INDEXES; ii++){
 
 				// compute the momentum that will be applied to the current tile
-				m_dir[ii] = param->momentums[ii]->values[indexes[ii]] *.95;
+				m_dir[ii] = param->momentums[ii]->values[indexes[ii]] * MOMEMTUM_CONSTANT;
 
 				// calculate the difference in that direction.
 				differences[ii] = current - (param->water->values[indexes[ii]] + param->height->values[indexes[ii]]);
@@ -541,6 +574,10 @@ map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocit
 		pipes[ii] = new_map2d(heightmap->width, heightmap->height);
 	}
 
+	/* what I need to do :
+	 * Find the amount of material moved to the next tile, and then push that much water back the other way.
+	 */
+
 
 	for( int yy = 0; yy < heightmap->height; yy ++){
 		for( int xx = 0; xx < heightmap->width; xx++){
@@ -553,21 +590,14 @@ map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocit
 			float currwater = watermap->values[currindex];
 			int indexes[8];
 			float values[8];
-			indexes[0] = m_index(heightmap, xx - 1, yy - 1);
-			indexes[1] = m_index(heightmap, xx, yy - 1);
-			indexes[2] = m_index(heightmap, xx + 1, yy - 1);
-			indexes[3] = m_index(heightmap, xx + 1, yy);
-			indexes[4] = m_index(heightmap, xx + 1, yy + 1);
-			indexes[5] = m_index(heightmap, xx, yy + 1);
-			indexes[6] = m_index(heightmap, xx - 1, yy + 1);
-			indexes[7] = m_index(heightmap, xx - 1, yy);
+			calculate_indexes(indexes, xx, yy, heightmap);
 
 			// count the total amount being moved
 			float total = 0;
 			for( int ii = 0; ii < 8; ii++){
 				float tomove = velocities[ii]->values[currindex];
-				if( currwater < 0.01){
-				values[ii] = min (tomove  * 0.05, RAIN_CONSTANT * 0.02); //* (0.5-currwater) * (0.5-currwater)
+				if( currwater < 0.1){
+				values[ii] = tomove  * HYDRAULIC_EROSION_CONSTANT;// min (tomove  * 0.5, RAIN_CONSTANT * 0.02); //* (0.5-currwater) * (0.5-currwater)
 				}
 				else{
 					values[ii] = 0;
@@ -593,6 +623,12 @@ map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocit
 			// remove the moved volume
 			map_set(toReturn, xx, yy, left);
 
+			/* add that much water - there has to have been that much water that moved,
+			 * so there will be that much available to take.
+			 */
+			watermap->values[currindex] += totalmoved;
+
+
 		}
 	}
 
@@ -600,14 +636,17 @@ map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocit
 	// reduce part of map-reduce
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
-			// get the current value
-			float current = value(toReturn, xx, yy);
+			// get the current index
+			int currindex = m_index(heightmap, xx, yy);
 			// add the pipe values to it
+			float total = 0.0;
 			for( int ii = 0; ii < 8; ii ++){
-				current += value(pipes[ii], xx, yy);
+				total += pipes[ii]->values[currindex];
 			}
 			// assign it back
-			map_set(toReturn, xx, yy, current);
+			toReturn->values[currindex] += total;
+			// subtract that much water
+			watermap->values[currindex] -= total;
 		}
 	}
 

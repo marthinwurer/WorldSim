@@ -21,7 +21,7 @@ const float mindist = 0.008;
 
 const float RAIN_CONSTANT = 1.0/1024.0/365.0;
 const float HYDRAULIC_EROSION_CONSTANT = 0.01;
-const float MOMEMTUM_CONSTANT = 0.95;
+const float MOMEMTUM_CONSTANT = 0.97;
 
 extern const int NUM_THREADS;
 extern threadpool_t * thread_pool;
@@ -596,12 +596,12 @@ map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocit
 			float total = 0;
 			for( int ii = 0; ii < 8; ii++){
 				float tomove = velocities[ii]->values[currindex];
-				if( currwater < 0.1){
+//				if( currwater < 0.1){
 				values[ii] = tomove  * HYDRAULIC_EROSION_CONSTANT;// min (tomove  * 0.5, RAIN_CONSTANT * 0.02); //* (0.5-currwater) * (0.5-currwater)
-				}
-				else{
-					values[ii] = 0;
-				}
+//				}
+//				else{
+//					values[ii] = 0;
+//				}
 				total += values[ii];
 			}
 
@@ -626,7 +626,7 @@ map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocit
 			/* add that much water - there has to have been that much water that moved,
 			 * so there will be that much available to take.
 			 */
-			watermap->values[currindex] += totalmoved;
+//			watermap->values[currindex] += totalmoved;
 
 
 		}
@@ -646,7 +646,7 @@ map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocit
 			// assign it back
 			toReturn->values[currindex] += total;
 			// subtract that much water
-			watermap->values[currindex] -= total;
+//			watermap->values[currindex] -= total;
 		}
 	}
 

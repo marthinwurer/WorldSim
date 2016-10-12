@@ -187,11 +187,15 @@ int main(void) {
 
     int cross_section_row = 200;
 
+    // set up the past velocty stuff.
     int current_velocity = 0;
     float pastvelocities[100];
     for( int ii = 0; ii < 100; ii++){
     	pastvelocities[ii] = 0.0;
     }
+
+    // display boolean
+    int display = 1;
 
 
 
@@ -302,6 +306,10 @@ int main(void) {
                 	case(SDLK_k):
 							min_water /= 2;
                 	break;
+                	case(SDLK_u):
+							display += 1;
+                			display %= 2;
+                	break;
 
                 	}
                 	break;
@@ -313,8 +321,11 @@ int main(void) {
         SDL_RenderClear( gRenderer );
 
 
+        if( ! display){
+        	// if running with no screen updates, do nothing!
+        }
         // do the top down view
-        if( display_mode == 0){
+        else if( display_mode == 0){
 
         	for( int yy = 0; yy < fractal->height; yy++){
         		for( int xx = 0; xx < fractal->width; xx++){

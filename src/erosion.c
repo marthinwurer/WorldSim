@@ -17,7 +17,7 @@
 const float diagdist = 1.41421356237;
 const float diagval = 1.0/1.41421356237;
 
-const float mindist = 0.008;
+const float mindist = 0.018;
 
 const float RAIN_CONSTANT = 1.0/1024.0/365.0;
 const float HYDRAULIC_EROSION_CONSTANT = 0.01;

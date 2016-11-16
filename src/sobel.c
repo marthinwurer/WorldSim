@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "map2d.h"
+#include "sobel.h"
 #include "DiamondSquare.h"
 
 map2d * sobel_gradient(map2d * initial, float * maxval ){

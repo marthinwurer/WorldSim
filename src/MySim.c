@@ -33,7 +33,7 @@ const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 const int FRACTAL_POWER = 10; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
-float min_water = 0.004; // the minimum amount of water where the tile will be seen as having water in it.
+float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.
 
 const float BASE_SEA_LEVEL = 0.5;
 
@@ -283,7 +283,7 @@ int main(void) {
 						break;
 
                 	case(SDLK_w): // change display modes
-                		display_mode = (display_mode + 1) % 3;
+                		display_mode = (display_mode + 1) % 4;
                 	break;
 
                 	case(SDLK_t):
@@ -385,7 +385,7 @@ int main(void) {
         	}
 
         	// update the average velocity over the last 100 cycles.
-        	pastvelocities[current_velocity] = watermax;
+        	pastvelocities[current_velocity] = watermax * 0.8f;
         	current_velocity = (current_velocity + 1) % 100;
         	float totalv = 0.0;
             for( int ii = 0; ii < 100; ii++){
@@ -405,6 +405,18 @@ int main(void) {
         		}
         	}
         	map2d_delete(watervelocity);
+        }
+        else if (display_mode == 3){
+        	for( int yy = 0; yy < fractal->height; yy++){
+        		for( int xx = 0; xx < fractal->width; xx++){
+
+        			SDL_Color color;
+        			color = greyscale_gradient(0.25f, value(water, xx, yy));
+
+        			//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
+        			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
+        		}
+        	}
         }
 
 

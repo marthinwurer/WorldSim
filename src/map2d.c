@@ -71,3 +71,27 @@ void dispDS( map2d * ds ){
     }
     fflush(stdout);
 }
+
+
+/*
+ * This function totals the values in the map.
+ */
+double map2d_total( map2d * ds )
+{
+	double total = 0.0;
+	for( int ii = 0; ii < ds->height * ds->width; ii++){
+		total += ds->values[ii];
+	}
+	return total;
+
+}
+
+double map2d_min( map2d * ds )
+{
+	double min_val = ds->values[0];
+	for( int ii = 0; ii < ds->height * ds->width; ii++){
+		min_val = min( ds->values[ii], min_val);
+	}
+	return min_val;
+
+}

@@ -10,9 +10,9 @@
 
 map2d * thermal_erosion(map2d * input, map2d * water);
 
-float evaporate(map2d * input, float * removed);
+float evaporate(map2d * input, double * removed);
 
-void rainfall(map2d * input, map2d * rain_map, float evaporated);
+void rainfall(map2d * input, map2d * rain_map, double evaporated);
 
 map2d ** water_pipes(int x_dim, int y_dim);
 

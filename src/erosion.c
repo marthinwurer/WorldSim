@@ -17,11 +17,11 @@
 const float diagdist = 1.41421356237;
 const float diagval = 1.0/1.41421356237;
 
-const float mindist = 0.018;
+const float mindist = 0.009;
 
-const float RAIN_CONSTANT = 1.0/1024.0/365.0;
+const float RAIN_CONSTANT = 1.0/1024.0/365.0/24.0;
 const float HYDRAULIC_EROSION_CONSTANT = 0.01;
-const float MOMEMTUM_CONSTANT = 0.97;
+const float MOMEMTUM_CONSTANT = 0.95;
 
 extern const int NUM_THREADS;
 extern threadpool_t * thread_pool;
@@ -264,9 +264,9 @@ map2d * thermal_erosion(map2d * restrict input, map2d * restrict water){
  *
  * MODIFIES THE INPUT
  */
-float evaporate(map2d * input, float * removed){
+float evaporate(map2d * input, double * removed){
 	float maxval = 0.0;
-	float totalRemoved = 0;
+	double totalRemoved = 0;
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
@@ -290,12 +290,13 @@ float evaporate(map2d * input, float * removed){
  *
  * MODIFIES THE INPUT
  */
-void rainfall(map2d *restrict input, map2d *restrict rain_map, float evaporated){
-	float rain_per = evaporated / ( input->height * input->width);
+void rainfall(map2d *restrict input, map2d *restrict rain_map, double evaporated){
+
+	double rain_per = evaporated / (double)( input->height * input->width);
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
-			input->values[ii] = input->values[ii] + (RAIN_CONSTANT ); //* 1.1 * rain_map->values[ii]
+			input->values[ii] += rain_per;
 		}
 	}
 }

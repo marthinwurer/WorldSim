@@ -171,8 +171,13 @@ int main(void) {
 			}
 		}
 	}
+
+	// get the total water - to be used to unbreak conservation of mass
+    double totalwater = 0.0f;
+
+    totalwater = map2d_total(water);
 //	map_set(fractal, 300, 300, 0.0);
-    float vapor; // the amount of water to precipitate.
+    double vapor; // the amount of water to precipitate.
     float maxwater = evaporate(water, &vapor);
 	float watermax = 0;
 
@@ -235,7 +240,7 @@ int main(void) {
     for(;;){
         gettimeofday(&start, NULL);
 
-    	printf("iteration %d, max %f, first %f, maxwater %f, v %f\n",count, maxval, gradient->values[0], maxwater, watermax);
+    	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
     	fflush(stdout);
 
 #ifdef RENDER_SCREEN
@@ -451,9 +456,7 @@ int main(void) {
 
 
 
-//        if (count % 4){
-        	rainfall(water, rain_map, vapor);
-//        }
+        rainfall(water, rain_map, vapor);
 
         temp = water_movement(water, fractal, momentums, velocities);
         map2d_delete(oldwatermap);
@@ -464,10 +467,7 @@ int main(void) {
 		map2d_delete(fractal);
 		fractal = temp;
 
-//        if (count % 4 == 3){
-        	maxwater = evaporate(water, &vapor);
-//        }
-//        dispDS(water);
+		maxwater = evaporate(water, &vapor);
 
 
 
@@ -493,6 +493,19 @@ int main(void) {
 
 			tectonics = 0;
         }
+
+        // do monitoring calulations
+////        if( count % 2 == -1)
+//        {
+//        	double currwater = map2d_total(water);
+//        	// adjust the rainfall to compensate for gaining of mass.
+//        	if(currwater > totalwater){
+//        		printf("It's borked, irreparable. %f %f\n", currwater, totalwater);
+//        		return 1;
+//        	}
+//        	vapor = totalwater - currwater;
+//
+//        }
 
         // get the time elapsed
         gettimeofday(&end, NULL);

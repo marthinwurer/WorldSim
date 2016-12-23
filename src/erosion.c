@@ -20,7 +20,7 @@ const float diagval = 1.0/1.41421356237;
 const float mindist = 0.009;
 
 const float RAIN_CONSTANT = 1.0/1024.0/365.0/24.0;
-const float HYDRAULIC_EROSION_CONSTANT = 0.01;
+const float HYDRAULIC_EROSION_CONSTANT = 0.02;
 const float MOMEMTUM_CONSTANT = 0.95;
 
 extern const int NUM_THREADS;
@@ -264,14 +264,14 @@ map2d * thermal_erosion(map2d * restrict input, map2d * restrict water){
  *
  * MODIFIES THE INPUT
  */
-float evaporate(map2d * input, double * removed){
+float evaporate(map2d * input, double * removed, map2d * evap_map){
 	float maxval = 0.0;
 	double totalRemoved = 0;
 	for( int yy = 0; yy < input->height; yy++){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
 
-			float tomove = min(RAIN_CONSTANT * 1.1f, input->values[ii]);
+			float tomove = min(RAIN_CONSTANT * evap_map->values[ii], input->values[ii]);
 
 			input->values[ii] -= tomove;
 
@@ -386,10 +386,6 @@ void water_thread( void * arg){
 				// apply the acceleration to the velocity/momentum
 				m_dir[ii] += differences[ii] * .1;
 				m_dir[ii] = max( m_dir[ii], 0); // minimum is zero
-//				m_dir[ii] = min( m_dir[ii], 100); // maximum velocity - hopefully stops massive resonaces
-//				if( m_dir[ii] > RAIN_CONSTANT){
-//					m_dir[ii] = RAIN_CONSTANT;
-//				}
 				totalmomentum += m_dir[ii];
 			}
 
@@ -410,10 +406,24 @@ void water_thread( void * arg){
 //					printf("lessleft ");
 				}
 
+				// calulate the amount moved
+				float moved[WATER_INDEXES];
+				for( int ii = 0; ii < WATER_INDEXES; ii++){
+					moved[ii] = m_dir[ii] * proportion;//0;
+				}
+//				float coriolis_proportion = 4.0;
+//				for( int ii = 0; ii < WATER_INDEXES; ii++){
+//					float tomove = m_dir[ii] * proportion;
+//					// do some hacky coriolis force stuff
+//					moved[ii] += tomove * ((coriolis_proportion - 1.0)/coriolis_proportion);
+//					moved[(ii + 1) % WATER_INDEXES] += tomove * (1.0/coriolis_proportion);
+//				}
+//
+
 				// move that proportion to that tile.
 				for( int ii = 0; ii < WATER_INDEXES; ii++){
 					// calculate the amount moved
-					float tomove = m_dir[ii] * proportion;
+					float tomove = moved[ii];
 
 					// compute the velocity at the base of the water column
 					param->velocities[ii]->values[currindex] = tomove;

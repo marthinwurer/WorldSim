@@ -8,6 +8,8 @@
  ============================================================================
  */
 
+#define _BSD_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <SDL2/SDL.h>
@@ -35,7 +37,7 @@ const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.
 
-const float BASE_SEA_LEVEL = 0.25;
+const float BASE_SEA_LEVEL = 0.5;
 
 rng_state_t my_rand;
 threadpool_t * thread_pool;
@@ -113,6 +115,7 @@ int main(void) {
 
     time(&currtime);
 
+    // the traditional seed is 5554
     currtime = 5554;
 
     seed(&my_rand, (int) currtime, currtime * 3); // seed the RNG
@@ -123,12 +126,9 @@ int main(void) {
 
     gettimeofday(&start, NULL);
     gettimeofday(&end, NULL);
-
     seconds  = end.tv_sec  - start.tv_sec;
     useconds = end.tv_usec - start.tv_usec;
-
     mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-
     printf("Elapsed time: %ld milliseconds\n", mtime);
 
 
@@ -153,28 +153,37 @@ int main(void) {
 	// directly assign those points that are less than 0.5
 	for( int yy = 0; yy < fractal->height; yy++){
 		for( int xx = 0; xx < fractal->width; xx++){
-			float val = value(fractal, xx, yy) * 0.01;
+#if 0
+			/* parabolic */
 			float x = xx;
 			float y = yy;
 			float dim = fractal->width;
 			x = x / dim - 0.5;
-			val = (x * x) / 2.0 + y / dim;
+			float val = (x * x) / 2.0 + y / dim;
 
 			map_set(fractal, xx, yy, val);
-//			printf("%f ", val);
-//			if (xx < 200){
-//			map_set(fractal, xx, yy, xx/512.0 + val/512.0);
-//			}
-//			else if (xx <800){
-//				map_set(fractal, xx, yy, 200.0/512.0 + val/512.0);
-//			}
-//			else{
-//				map_set(fractal, xx, yy, (xx-600)/512.0 + val/512.0);
-//			}
-////			map_set(rain_map, xx, yy, xx/1024.0);
+			printf("%f ", val);
+
+#elif 0
+			/* slopes */
+			float val = value(fractal, xx, yy) * 0.01;
+			if (xx < 200){
+			map_set(fractal, xx, yy, xx/512.0 + val/512.0);
+			}
+			else if (xx <800){
+				map_set(fractal, xx, yy, 200.0/512.0 + val/512.0);
+			}
+			else{
+				map_set(fractal, xx, yy, (xx-600)/512.0 + val/512.0);
+			}
+#elif 0
+			/* single slope */
+			map_set(rain_map, xx, yy, xx/1024.0);
+#else
 			if( value(fractal, xx, yy) < BASE_SEA_LEVEL){
 				map_set(water, xx, yy, BASE_SEA_LEVEL - value(fractal, xx, yy) );
 			}
+#endif
 		}
 //		printf("\n");
 	}
@@ -372,7 +381,7 @@ int main(void) {
         				color = shade( color, value(gradient, xx, yy), 0.008);
 //        			}
 
-        			//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
+        			//SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
         			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
         		}
         	}
@@ -475,14 +484,16 @@ int main(void) {
 		map2d_delete(gradient);
         gradient = temp;
 
+#if 0
 //        // test for source and drain
-//        map_set(water, 30, 512, 0.0);
+        map_set(water, 30, 512, 0.0);
         float source = value(water, 500, 900) + vapor;
         map_set(water, 500, 900, source);
+#endif
 
 
 
-//        rainfall(water, rain_map, vapor);
+        rainfall(water, rain_map, vapor);
 
         temp = water_movement(water, fractal, momentums, velocities);
         map2d_delete(oldwatermap);
@@ -499,8 +510,7 @@ int main(void) {
 
 
 
-        // do plate tectonics if everything has settled down.
-//        if(maxval < 0.01){
+		// do the plate tectonics
         if( tectonics){
 			temp = basic_tectonics(fractal, boundaries);
 			map2d_delete(fractal);

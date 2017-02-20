@@ -3,6 +3,7 @@
 
 */
 
+#define _BSD_SOURCE
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -19,7 +20,7 @@ const float diagval = 1.0/1.41421356237;
 
 const float mindist = 0.009;
 
-const float RAIN_CONSTANT = 1.0/1024.0/365.0/24.0;
+const float RAIN_CONSTANT = 1.0/1024.0/365.0;//24.0;
 const float HYDRAULIC_EROSION_CONSTANT = 0.02;
 const float MOMEMTUM_CONSTANT = 0.95;
 
@@ -571,7 +572,7 @@ map2d * water_movement(map2d * restrict water, map2d * restrict height, map2d **
 /*
  * Compute the hydraulic erosion
  */
-map2d ** hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocities){
+map2d * hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocities){
 
 	// make a new map to return.
 	map2d * toReturn = new_map2d(heightmap->width, heightmap->height);

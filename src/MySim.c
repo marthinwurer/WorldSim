@@ -10,9 +10,32 @@
 
 #define _BSD_SOURCE
 
+#define RENDER_SCREEN
+#define RENDER_GL
+
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef RENDER_SCREEN
 #include <SDL2/SDL.h>
+#endif
+#ifdef RENDER_GL
+
+// GLEW
+#define GLEW_STATIC
+#include <GL/glew.h>
+// GLFW
+#include <GLFW/glfw3.h>
+
+#endif
+
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
+
 #include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -27,7 +50,6 @@
 #include "threadpool.h"
 #include "utilities.h"
 
-#define RENDER_SCREEN
 
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
@@ -85,7 +107,7 @@ learnopengl.com
 
 */
 
-
+#ifdef RENDER_SCREEN
 void drawPoint(SDL_Renderer* renderer,
         int           x,
         int           y,
@@ -108,6 +130,7 @@ void drawRect(SDL_Renderer* renderer,
     SDL_Rect rect = {x, y, 1, SCREEN_HEIGHT - y};
     SDL_RenderFillRect(renderer, &rect);
 }
+#endif
 
 
 int main(void) {
@@ -134,6 +157,10 @@ int main(void) {
 
     // initialize the threadpool
     thread_pool = threadpool_create(NUM_THREADS, NUM_THREADS*2, 0);
+
+    /////////////////////////////////////////
+    // MAPS
+    /////////////////////////////////////////
 
     float maxval = 0.0;
     map2d * fractal = DSCreate(FRACTAL_POWER, &my_rand); // the current heightmap
@@ -179,11 +206,10 @@ int main(void) {
 #elif 0
 			/* single slope */
 			map_set(rain_map, xx, yy, xx/1024.0);
-#else
+#endif
 			if( value(fractal, xx, yy) < BASE_SEA_LEVEL){
 				map_set(water, xx, yy, BASE_SEA_LEVEL - value(fractal, xx, yy) );
 			}
-#endif
 		}
 //		printf("\n");
 	}
@@ -268,9 +294,45 @@ int main(void) {
 
     // event union
     SDL_Event event;
+
+    ///////////////////////////////////////////////////////
+    // OPENGL SETUP
+    ///////////////////////////////////////////////////////
+#ifdef RENDER_GL
+
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 3 );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+
+    //OpenGL context
+    SDL_GLContext gContext;
+    gContext = SDL_GL_CreateContext( window );
+    if( gContext == NULL )
+    {
+    	printf( "OpenGL context could not be created! SDL Error: %s\n", SDL_GetError() );
+    	exit(0);
+    }
+
+    //Initialize GLEW
+    glewExperimental = GL_TRUE;
+    GLenum glewError = glewInit();
+    if( glewError != GLEW_OK )
+    {
+    	printf( "Error initializing GLEW! %s\n", glewGetErrorString( glewError ) );
+    	exit(0);
+    }
+
+    //Use Vsync
+    if( SDL_GL_SetSwapInterval( 1 ) < 0 )
+    {
+    	printf( "Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
+    }
+
+#endif
 #endif
 
-        // ENTER THE MAIN GAME LOOP
+
+        // ENTER THE MAIN LOOP
     for(;;){
         gettimeofday(&start, NULL);
 
@@ -326,7 +388,7 @@ int main(void) {
 							break;
 
 						case(SDLK_w): // change display modes
-							display_mode = (display_mode + 1) % 4;
+							display_mode = (display_mode + 1) % 5;
 						break;
 
 						case(SDLK_t):
@@ -467,6 +529,10 @@ int main(void) {
         			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
         		}
         	}
+        }
+        	// do openGL rendering
+        else if (display_mode == 4){
+
         }
 
 

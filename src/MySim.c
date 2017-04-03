@@ -50,6 +50,9 @@
 #include "threadpool.h"
 #include "utilities.h"
 
+#define DO_EROSION
+//#define DO_THERMAL_EROSION
+
 
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
@@ -328,6 +331,22 @@ int main(void) {
     	printf( "Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
     }
 
+    // set up the rendering area
+    uint32_t width, height;
+    SDL_GL_GetDrawableSize(window, &width, &height);
+
+    glViewport(0, 0, width, height);
+
+    // set up the z buffer
+    glEnable(GL_DEPTH_TEST);
+
+
+    // set up blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
+
 #endif
 #endif
 
@@ -542,10 +561,18 @@ int main(void) {
         SDL_RenderPresent( gRenderer );
 
 #endif
+
         map2d * temp;
+
+#ifdef DO_EROSION
+#ifdef DO_THERMAL_EROSION
 		temp = thermal_erosion(fractal, water);
 		map2d_delete(fractal);
 		fractal = temp;
+#endif
+#endif
+
+
 		temp = sobel_gradient(fractal, &maxval);
 		map2d_delete(gradient);
         gradient = temp;
@@ -566,10 +593,11 @@ int main(void) {
         oldwatermap = water;
         water = temp;
 
+#ifdef DO_EROSION
 		temp = hydraulic_erosion(fractal, oldwatermap, velocities);
 		map2d_delete(fractal);
 		fractal = temp;
-
+#endif
 		maxwater = evaporate(water, &vapor, rain_map);
 
 

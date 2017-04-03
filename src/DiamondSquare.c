@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <limits.h>
 
 #include "map2d.h"
 #include "DiamondSquare.h"
@@ -38,12 +39,22 @@ map2d * DSCreate(int power, rng_state_t * rand){
     printf("dimension: %i, squared: %i\n", dimension, dimension * dimension);
 
     // seed the initial map
-    float seed = nextDouble(rand) * height;
-    ind(0,0) = seed;
+
+    int iterations = 2;
+    for(; iterations > 0; iterations --){
+    	step /= 2;
+    }
+    for( int yy = 0; yy < dimension; yy += step){
+    	for( int xx = 0; xx < dimension; xx += step){
+    		float seed = nextDouble(rand) * height;
+    		ind(xx,yy) = seed;
+    	}
+    }
+
 
     // store the seed as both the min and the max
-    float min = seed;
-    float max = seed;
+    float min = INT_MAX;
+    float max = INT_MIN;
 
     // do the initial change of the height
     height /= 2.0;

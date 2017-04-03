@@ -20,8 +20,8 @@ const float diagval = 1.0/1.41421356237;
 
 const float mindist = 0.009;
 
-const float RAIN_CONSTANT = 1.0/1024.0/365.0;//24.0;
-const float HYDRAULIC_EROSION_CONSTANT = 0.02;
+const float RAIN_CONSTANT = 1.0/1024.0/365.0/24.0;
+const float HYDRAULIC_EROSION_CONSTANT = 0.01;
 const float MOMEMTUM_CONSTANT = 0.95;
 
 extern const int NUM_THREADS;
@@ -265,6 +265,7 @@ map2d * thermal_erosion(map2d * restrict input, map2d * restrict water){
  *
  * MODIFIES THE INPUT
  */
+#define FLAT_EVAP
 float evaporate(map2d * input, double * removed, map2d * evap_map){
 	float maxval = 0.0;
 	double totalRemoved = 0;
@@ -272,7 +273,13 @@ float evaporate(map2d * input, double * removed, map2d * evap_map){
 		for( int xx = 0; xx < input->width; xx++){
 			int ii = m_index(input, xx, yy);
 
-			float tomove = min(RAIN_CONSTANT * evap_map->values[ii], input->values[ii]);
+#ifndef FLAT_EVAP
+			float amount = RAIN_CONSTANT * evap_map->values[ii];
+#else
+			float amount = RAIN_CONSTANT;
+#endif
+
+			float tomove = min(amount, input->values[ii]);
 
 			input->values[ii] -= tomove;
 

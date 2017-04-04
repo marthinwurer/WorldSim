@@ -49,6 +49,7 @@
 #include "tectonics.h"
 #include "threadpool.h"
 #include "utilities.h"
+#include "weather.h"
 
 #define DO_EROSION
 //#define DO_THERMAL_EROSION
@@ -57,7 +58,7 @@
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 10; // the power of two that represents the current map size
+const int FRACTAL_POWER = 5; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.
@@ -407,7 +408,7 @@ int main(void) {
 							break;
 
 						case(SDLK_w): // change display modes
-							display_mode = (display_mode + 1) % 5;
+							display_mode = (display_mode + 1) % 6;
 						break;
 
 						case(SDLK_t):
@@ -551,6 +552,37 @@ int main(void) {
         }
         	// do openGL rendering
         else if (display_mode == 4){
+
+        }
+        else if (display_mode == 5){
+        	map2d * temp_map = temp_map_from_heightmap(fractal, BASE_SEA_LEVEL, 1.0);
+        	float min_v = value(temp_map, 0, 0);
+        	float max_v = min_v;
+
+        	// find the min and max vals
+        	for( int yy = 0; yy < temp_map->height; yy++ ){
+        		for( int xx = 0; xx < temp_map->width; xx++ ){
+        			float val = value(temp_map, xx, yy);
+        			min_v = min(min_v, val);
+        			max_v = max(max_v, val);
+        		}
+        	}
+
+        	// normalize them
+        	float difference = max_v - min_v;
+        	for( int yy = 0; yy < temp_map->height; yy++ ){
+        		for( int xx = 0; xx < temp_map->width; xx++ ){
+        			int ind = m_index(temp_map, xx, yy);
+        			float val = (temp_map->values[ind] - min_v) / difference;
+        			SDL_Color color;
+        			color = greyscale_gradient(1.0, val);
+
+        			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
+        		}
+        	}
+
+        	map2d_delete(temp_map);
+
 
         }
 

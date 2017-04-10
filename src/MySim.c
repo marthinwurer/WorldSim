@@ -58,7 +58,7 @@
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 5; // the power of two that represents the current map size
+const int FRACTAL_POWER = 10; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.

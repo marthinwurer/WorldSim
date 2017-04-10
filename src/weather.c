@@ -6,25 +6,21 @@
  */
 
 #include "weather.h"
+#include "utilities.h"
 
 
 #include <math.h>
 
 float base_temp(float latitude){
-	if(abs(latitude) < .2){
+	if(fabs(latitude) < .2){
 		return 27;
 	}
-	float val = abs(latitude)* -67.5 + 27.0;
-	if( latitude > 0){
-		return val;
-	}
-	else{
-		return -val;
-	}
+	float val = fabs(latitude) * -67.5 + 40.5;
+	return val;
 }
 
 
-map2d * temp_map_from_heightmap(map2d* heightmap, float sealevel, float max){
+map2d * temp_map_from_heightmap(map2d* heightmap, float sealevel, float max_height){
 	map2d * temp_map = new_map2d(heightmap->width, heightmap->height);
 
 	/*
@@ -41,7 +37,7 @@ map2d * temp_map_from_heightmap(map2d* heightmap, float sealevel, float max){
 			int index = m_index(temp_map, xx, yy);
 
 			float height = heightmap->values[index];
-			float adjusted = height - sealevel;
+			float adjusted = max(height - sealevel, 0.0);
 			float lapse = adjusted * -88.48;
 
 			float latitude = temp_map->height / 2;

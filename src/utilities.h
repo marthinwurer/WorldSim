@@ -8,6 +8,8 @@
 #ifndef UTILITIES_H_
 #define UTILITIES_H_
 
+#include "map2d.h"
+
 float bilinearInterpolation(
 		float fracx, float fracy,
 		float negxposy, float posxposy, float negxnegy, float posxnegy);
@@ -32,6 +34,6 @@ static inline float max(float a, float b)
     return a > b ? a : b;
 }
 
-
+int check_nan(map2d * data, const char * file, int line);
 
 #endif /* UTILITIES_H_ */

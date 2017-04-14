@@ -20,7 +20,6 @@ const float diagval = 1.0/1.41421356237;
 
 const float mindist = 0.009;
 
-const float RAIN_CONSTANT = 1.0/1024.0/365.0/24.0;
 const float HYDRAULIC_EROSION_CONSTANT = 0.01;
 const float MOMEMTUM_CONSTANT = 0.95;
 
@@ -260,55 +259,6 @@ map2d * thermal_erosion(map2d * restrict input, map2d * restrict water){
 }
 
 
-/**
- * Do basic evaporation: remove half of the water from the tile.
- *
- * MODIFIES THE INPUT
- */
-#define FLAT_EVAP
-float evaporate(map2d * input, double * removed, map2d * evap_map){
-	float maxval = 0.0;
-	double totalRemoved = 0;
-	for( int yy = 0; yy < input->height; yy++){
-		for( int xx = 0; xx < input->width; xx++){
-			int ii = m_index(input, xx, yy);
-
-#ifndef FLAT_EVAP
-			float amount = RAIN_CONSTANT * evap_map->values[ii];
-#else
-			float amount = RAIN_CONSTANT;
-#endif
-
-			float tomove = min(amount, input->values[ii]);
-
-			input->values[ii] -= tomove;
-
-			if( input->values[ii] > maxval){
-				maxval = input->values[ii];
-			}
-			totalRemoved += tomove;
-		}
-	}
-	*removed = totalRemoved;
-	return maxval;
-}
-
-/**
- * Do basic rainfall: add a portion of the rain map to the .
- *
- * MODIFIES THE INPUT
- */
-void rainfall(map2d *restrict input, map2d *restrict rain_map, double evaporated){
-
-	double rain_per = evaporated / (double)( input->height * input->width);
-	for( int yy = 0; yy < input->height; yy++){
-		for( int xx = 0; xx < input->width; xx++){
-			int ii = m_index(input, xx, yy);
-			input->values[ii] += rain_per;
-		}
-	}
-}
-
 //#ifdef nope
 #define WATER_INDEXES 8
 
@@ -393,7 +343,7 @@ void water_thread( void * arg){
 
 				// apply the acceleration to the velocity/momentum
 				m_dir[ii] += differences[ii] * .1;
-				m_dir[ii] = max( m_dir[ii], 0); // minimum is zero
+				m_dir[ii] = max( 0, m_dir[ii]); // minimum is zero
 				totalmomentum += m_dir[ii];
 			}
 
@@ -579,7 +529,7 @@ map2d * water_movement(map2d * restrict water, map2d * restrict height, map2d **
 /*
  * Compute the hydraulic erosion
  */
-map2d * hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velocities){
+map2d * hydraulic_erosion(map2d * heightmap, map2d ** velocities){
 
 	// make a new map to return.
 	map2d * toReturn = new_map2d(heightmap->width, heightmap->height);
@@ -590,6 +540,7 @@ map2d * hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velociti
 	// make all the pipes
 	for( int ii = 0; ii < 8; ii++)
 	{
+		check_nan(velocities[ii], __FILE__, __LINE__);
 		pipes[ii] = new_map2d(heightmap->width, heightmap->height);
 	}
 
@@ -606,7 +557,6 @@ map2d * hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velociti
 			// 6 5 4
 			float current = value(heightmap, xx, yy);
 			int currindex = m_index(heightmap, xx, yy);
-			float currwater = watermap->values[currindex];
 			int indexes[8];
 			float values[8];
 			calculate_indexes(indexes, xx, yy, heightmap);
@@ -624,7 +574,7 @@ map2d * hydraulic_erosion(map2d * heightmap, map2d * watermap, map2d ** velociti
 				total += values[ii];
 			}
 
-			float proportion = min(current / total, 1.0);
+			float proportion = min(1.0, current / total);
 			float totalmoved = 0;
 
 			// move that proportion to that tile.

@@ -167,52 +167,52 @@ int main(void) {
     /////////////////////////////////////////
 
     float maxval = 0.0;
-    map2d * fractal = DSCreate(FRACTAL_POWER, &my_rand); // the current heightmap
-//    fractal = new_map2d(fractal->width, fractal->height);
-    map2d * gradient = sobel_gradient(fractal, &maxval); // the slope of the current heightmap
-//    map_set(fractal, 300, 300, 100);
+    map2d * heightmap = DSCreate(FRACTAL_POWER, &my_rand); // the current heightmap
+    map2d * sediment = DSCreate(FRACTAL_POWER, &my_rand); // the sediment layer. gravel, dirt, sand, etc.
+    map2d * gradient = sobel_gradient(heightmap, &maxval); // the slope of the current heightmap
 	map2d * boundaries = DSCreate(FRACTAL_POWER, &my_rand); // plate boundaries
 
-	map2d * water = new_map2d(fractal->width, fractal->height); // the water map
-    map2d * oldwatermap = new_map2d(fractal->width, fractal->height);
-	map2d * rain_map = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
-	map2d * water_gradient = sobel_gradient(fractal, &maxval); // water gradient (show waves
+	map2d * water = new_map2d(heightmap->width, heightmap->height); // the water map
+    map2d * oldwatermap = new_map2d(heightmap->width, heightmap->height);
+    map2d * ground_water = new_map2d(heightmap->width, heightmap->height);
+    map2d * aquifer_water = new_map2d(heightmap->width, heightmap->height);
+	map2d * evaporated_water = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
+	map2d * water_gradient = sobel_gradient(heightmap, &maxval); // water gradient (show waves
 
 
 	// process all of the map tiles
 	// calculate the sea level difference and save it in the water map
 	// directly assign those points that are less than 0.5
-	for( int yy = 0; yy < fractal->height; yy++){
-		for( int xx = 0; xx < fractal->width; xx++){
+	for( int yy = 0; yy < heightmap->height; yy++){
+		for( int xx = 0; xx < heightmap->width; xx++){
 #if 0
 			/* parabolic */
 			float x = xx;
 			float y = yy;
-			float dim = fractal->width;
+			float dim = heightmap->width;
 			x = x / dim - 0.5;
 			float val = (x * x) / 2.0 + y / dim;
 
-			map_set(fractal, xx, yy, val);
-			printf("%f ", val);
+			map_set(heightmap, xx, yy, val);
 
-#elif 0
+#elif 1
 			/* slopes */
-			float val = value(fractal, xx, yy) * 0.01;
+			float val = 0;// value(heightmap, xx, yy) * 0.01;
 			if (xx < 200){
-			map_set(fractal, xx, yy, xx/512.0 + val/512.0);
+			map_set(heightmap, xx, yy, xx/512.0 + val/512.0);
 			}
 			else if (xx <800){
-				map_set(fractal, xx, yy, 200.0/512.0 + val/512.0);
+				map_set(heightmap, xx, yy, 200.0/512.0 + val/512.0);
 			}
 			else{
-				map_set(fractal, xx, yy, (xx-600)/512.0 + val/512.0);
+				map_set(heightmap, xx, yy, (xx-600)/512.0 + val/512.0);
 			}
 #elif 0
 			/* single slope */
-			map_set(rain_map, xx, yy, xx/1024.0);
+			map_set(heightmap, xx, yy, xx/1024.0);
 #endif
-			if( value(fractal, xx, yy) < BASE_SEA_LEVEL){
-				map_set(water, xx, yy, BASE_SEA_LEVEL - value(fractal, xx, yy) );
+			if( value(heightmap, xx, yy) < BASE_SEA_LEVEL){
+				map_set(water, xx, yy, BASE_SEA_LEVEL - value(heightmap, xx, yy) );
 			}
 		}
 //		printf("\n");
@@ -234,6 +234,8 @@ int main(void) {
 //		}
 //	}
 
+	map2d * temp_map = temp_map_from_heightmap(heightmap, BASE_SEA_LEVEL, 1.0);
+
 
 	// get the total water - to be used to unbreak conservation of mass
     double totalwater = 0.0f;
@@ -241,12 +243,12 @@ int main(void) {
     totalwater = map2d_total(water);
 //	map_set(fractal, 300, 300, 0.0);
     double vapor; // the amount of water to precipitate.
-    float maxwater = evaporate(water, &vapor, rain_map);
+    float maxwater = evaporate(water, ground_water, &vapor, evaporated_water, temp_map);
 	float watermax = 0;
 
 
-    map2d ** velocities = water_pipes(fractal->width, fractal->width);
-    map2d ** momentums = water_pipes(fractal->width, fractal->width);
+    map2d ** velocities = water_pipes(heightmap->width, heightmap->width);
+    map2d ** momentums = water_pipes(heightmap->width, heightmap->width);
 
 
     int tectonics = 0;
@@ -358,6 +360,8 @@ int main(void) {
 
     	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
     	fflush(stdout);
+        check_nan(heightmap, __FILE__, __LINE__);
+
 
 #ifdef RENDER_SCREEN
         // process all events in the queue.
@@ -373,8 +377,8 @@ int main(void) {
 							map2d_delete(boundaries);
 
 							boundaries = DSCreate(FRACTAL_POWER, &my_rand);
-							map2d_delete(rain_map);
-							rain_map = DSCreate(FRACTAL_POWER, &my_rand);
+							map2d_delete(evaporated_water);
+							evaporated_water = DSCreate(FRACTAL_POWER, &my_rand);
 
 	//                		map_set(water,200, 200, 1);
 							//                		dispDS( rain_map );
@@ -383,26 +387,26 @@ int main(void) {
 							break;
 
 						case(SDLK_r): // generate a new map
-							map2d_delete( fractal );
+							map2d_delete( heightmap );
 							map2d_delete( gradient);
 							map2d_delete( water );
 
-							fractal = DSCreate(FRACTAL_POWER, &my_rand);
-							gradient = sobel_gradient(fractal, &maxval);
-							water = new_map2d(fractal->width, fractal->height);
+							heightmap = DSCreate(FRACTAL_POWER, &my_rand);
+							gradient = sobel_gradient(heightmap, &maxval);
+							water = new_map2d(heightmap->width, heightmap->height);
 							// calculate the sea level difference and save it in the water map
 							// directly assign those points that are less than 0.5
-							for( int yy = 0; yy < fractal->height; yy++){
-								for( int xx = 0; xx < fractal->width; xx++){
-									if( value(fractal, xx, yy) < 0.5){
-										map_set(water, xx, yy, 0.5 - value(fractal, xx, yy) );
+							for( int yy = 0; yy < heightmap->height; yy++){
+								for( int xx = 0; xx < heightmap->width; xx++){
+									if( value(heightmap, xx, yy) < 0.5){
+										map_set(water, xx, yy, 0.5 - value(heightmap, xx, yy) );
 									}
 								}
 							}
 
 							// wipe the old momentums and velocities.
-							velocities = water_pipes(fractal->width, fractal->width);
-							momentums = water_pipes(fractal->width, fractal->width);
+							velocities = water_pipes(heightmap->width, heightmap->width);
+							momentums = water_pipes(heightmap->width, heightmap->width);
 
 
 							break;
@@ -448,15 +452,15 @@ int main(void) {
         // do the top down view
         else if( display_mode == 0){
 
-        	for( int yy = 0; yy < fractal->height; yy++){
-        		for( int xx = 0; xx < fractal->width; xx++){
+        	for( int yy = 0; yy < heightmap->height; yy++){
+        		for( int xx = 0; xx < heightmap->width; xx++){
 
         			SDL_Color color;
-        			color = alpine_gradient(0.5f, fractal->values[xx + yy * fractal->height]);
+        			color = alpine_gradient(0.5f, heightmap->values[xx + yy * heightmap->height]);
         			if( value(water, xx, yy) > min_water){
         				color = interpolate_colors(
         						color,
-								water_color(0.5f, value(water, xx, yy)+fractal->values[xx + yy * fractal->height]),
+								water_color(0.5f, value(water, xx, yy)+heightmap->values[xx + yy * heightmap->height]),
 								(value(water, xx, yy)/2 + .25) / 0.5);
         			}
 //        			else{
@@ -474,20 +478,20 @@ int main(void) {
         // do the sideways view
         else if (display_mode == 1){
         	int yy = cross_section_row;
-    		for( int xx = 0; xx < fractal->width; xx++){
+    		for( int xx = 0; xx < heightmap->width; xx++){
 				int height = 0;
     			SDL_Color color;
 
     			// draw the water
-    			height = (value(water, xx, yy) + value(fractal, xx, yy)) * SCREEN_HEIGHT / 4;
+    			height = (value(water, xx, yy) + value(heightmap, xx, yy)) * SCREEN_HEIGHT / 4;
     			color = water_color(0.5f, 0);
     			drawRect(gRenderer, xx,
     					SCREEN_HEIGHT - height,
 						color.r, color.g, color.b, color.a);
 
     			// draw the land
-    			color = alpine_gradient(0.5f, fractal->values[xx + yy * fractal->height]);
-    			height = fractal->values[xx + yy * fractal->height] * SCREEN_HEIGHT / 4;
+    			color = alpine_gradient(0.5f, heightmap->values[xx + yy * heightmap->height]);
+    			height = heightmap->values[xx + yy * heightmap->height] * SCREEN_HEIGHT / 4;
 
 
     			drawRect(gRenderer, xx, SCREEN_HEIGHT - height,
@@ -500,17 +504,17 @@ int main(void) {
         // do water velocity
         else if( display_mode == 2){
         	watermax = 0;
-        	map2d * watervelocity = new_map2d(fractal->width, fractal->height);
+        	map2d * watervelocity = new_map2d(heightmap->width, heightmap->height);
 
-        	for( int yy = 0; yy < fractal->height; yy++){
-        		for( int xx = 0; xx < fractal->width; xx++){
+        	for( int yy = 0; yy < heightmap->height; yy++){
+        		for( int xx = 0; xx < heightmap->width; xx++){
 
         			// sum the water velocity
         			float vel = 0;
         			for( int ii = 0; ii < 8; ii++){
-        				vel += velocities[ii]->values[xx + yy * fractal->height];
+        				vel += velocities[ii]->values[xx + yy * heightmap->height];
         			}
-        			watervelocity->values[xx + yy * fractal->height] = vel;
+        			watervelocity->values[xx + yy * heightmap->height] = vel;
 
         			watermax = max(vel, watermax);
         		}
@@ -525,27 +529,27 @@ int main(void) {
             }
             float averagev = totalv / 100;
 
-        	for( int yy = 0; yy < fractal->height; yy++){
-        		for( int xx = 0; xx < fractal->width; xx++){
+        	for( int yy = 0; yy < heightmap->height; yy++){
+        		for( int xx = 0; xx < heightmap->width; xx++){
 
 //        			float weight = 0.025;
         			float weight = averagev;
 
         			SDL_Color color;
-        			color = greyscale_gradient( weight, watervelocity->values[xx + yy * fractal->height]);
+        			color = greyscale_gradient( weight, watervelocity->values[xx + yy * heightmap->height]);
         			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
         		}
         	}
         	map2d_delete(watervelocity);
         }
         else if (display_mode == 3){
-        	for( int yy = 0; yy < fractal->height; yy++){
-        		for( int xx = 0; xx < fractal->width; xx++){
+        	for( int yy = 0; yy < heightmap->height; yy++){
+        		for( int xx = 0; xx < heightmap->width; xx++){
 
         			SDL_Color color;
         			color = greyscale_gradient(0.25f, value(water, xx, yy));
 
-        			//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
+        			//                SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * heightmap->height]);
         			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
         		}
         	}
@@ -555,7 +559,6 @@ int main(void) {
 
         }
         else if (display_mode == 5){
-        	map2d * temp_map = temp_map_from_heightmap(fractal, BASE_SEA_LEVEL, 1.0);
         	float min_v = value(temp_map, 0, 0);
         	float max_v = min_v;
 
@@ -575,13 +578,14 @@ int main(void) {
         			int ind = m_index(temp_map, xx, yy);
         			float val = (temp_map->values[ind] - min_v) / difference;
         			SDL_Color color;
-        			color = greyscale_gradient(1.0, val);
+//        			color = greyscale_gradient(1.0, val);
+        			color = alpine_gradient(BASE_SEA_LEVEL, 1.0-val);
 
         			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
         		}
         	}
 
-        	map2d_delete(temp_map);
+//        	map2d_delete(temp_map);
 
 
         }
@@ -598,14 +602,14 @@ int main(void) {
 
 #ifdef DO_EROSION
 #ifdef DO_THERMAL_EROSION
-		temp = thermal_erosion(fractal, water);
+		temp = thermal_erosion(heightmap, water);
 		map2d_delete(fractal);
-		fractal = temp;
+		heightmap = temp;
 #endif
 #endif
 
 
-		temp = sobel_gradient(fractal, &maxval);
+		temp = sobel_gradient(heightmap, &maxval);
 		map2d_delete(gradient);
         gradient = temp;
 
@@ -618,19 +622,23 @@ int main(void) {
 
 
 
-        rainfall(water, rain_map, vapor);
+        rainfall(water, evaporated_water, vapor);
 
-        temp = water_movement(water, fractal, momentums, velocities);
+        temp = water_movement(water, heightmap, momentums, velocities);
         map2d_delete(oldwatermap);
         oldwatermap = water;
         water = temp;
+        check_nan(heightmap, __FILE__, __LINE__);
+        check_nan(water, __FILE__, __LINE__);
 
 #ifdef DO_EROSION
-		temp = hydraulic_erosion(fractal, oldwatermap, velocities);
-		map2d_delete(fractal);
-		fractal = temp;
+		temp = hydraulic_erosion(heightmap, velocities);
+		map2d_delete(heightmap);
+		heightmap = temp;
+        check_nan(heightmap, __FILE__, __LINE__);
+
 #endif
-		maxwater = evaporate(water, &vapor, rain_map);
+		maxwater = evaporate(water, ground_water, &vapor, evaporated_water, temp_map);
 
 
 
@@ -638,20 +646,20 @@ int main(void) {
 
 		// do the plate tectonics
         if( tectonics){
-			temp = basic_tectonics(fractal, boundaries);
-			map2d_delete(fractal);
-			fractal = temp;
-			temp = sobel_gradient(fractal, &maxval);
+			temp = basic_tectonics(heightmap, boundaries);
+			map2d_delete(heightmap);
+			heightmap = temp;
+			temp = sobel_gradient(heightmap, &maxval);
 			map2d_delete(gradient);
 	        gradient = temp;
 
 	        // then run two iterations of the thermal erosion algorithm.
-			temp = thermal_erosion(fractal, water);
-			map2d_delete(fractal);
-			fractal = temp;
-			temp = thermal_erosion(fractal, water);
-			map2d_delete(fractal);
-			fractal = temp;
+			temp = thermal_erosion(heightmap, water);
+			map2d_delete(heightmap);
+			heightmap = temp;
+			temp = thermal_erosion(heightmap, water);
+			map2d_delete(heightmap);
+			heightmap = temp;
 
 			tectonics = 0;
         }

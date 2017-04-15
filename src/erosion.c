@@ -540,7 +540,7 @@ map2d * hydraulic_erosion(map2d * heightmap, map2d ** velocities){
 	// make all the pipes
 	for( int ii = 0; ii < 8; ii++)
 	{
-		check_nan(velocities[ii], __FILE__, __LINE__);
+//		check_nan(velocities[ii], __FILE__, __LINE__);
 		pipes[ii] = new_map2d(heightmap->width, heightmap->height);
 	}
 

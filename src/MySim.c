@@ -628,14 +628,14 @@ int main(void) {
         map2d_delete(oldwatermap);
         oldwatermap = water;
         water = temp;
-        check_nan(heightmap, __FILE__, __LINE__);
-        check_nan(water, __FILE__, __LINE__);
+//        check_nan(heightmap, __FILE__, __LINE__);
+//        check_nan(water, __FILE__, __LINE__);
 
 #ifdef DO_EROSION
 		temp = hydraulic_erosion(heightmap, velocities);
 		map2d_delete(heightmap);
 		heightmap = temp;
-        check_nan(heightmap, __FILE__, __LINE__);
+//        check_nan(heightmap, __FILE__, __LINE__);
 
 #endif
 		maxwater = evaporate(water, ground_water, &vapor, evaporated_water, temp_map);

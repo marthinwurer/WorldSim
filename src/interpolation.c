@@ -17,7 +17,10 @@ const SDL_Color brown = {111, 78, 55, 255};
 const SDL_Color white = {255, 255, 255, 255};
 
 SDL_Color interpolate_colors( SDL_Color c1, SDL_Color c2, float fraction){
-    SDL_Color toReturn = c1;
+	if (fraction >= 1.0){
+		return c2;
+	}
+    SDL_Color toReturn = c2;
     float recip = 1.0 - fraction;
     toReturn.r = ((float)c2.r * fraction ) + ((float)c1.r * recip);
     toReturn.a = ((float)c2.a * fraction ) + ((float)c1.a * recip);

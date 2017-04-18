@@ -197,7 +197,7 @@ int main(void) {
 
 #elif 1
 			/* slopes */
-			float val = 0;// value(heightmap, xx, yy) * 0.01;
+			float val = value(heightmap, xx, yy) * 0.01;
 			if (xx < 200){
 			map_set(heightmap, xx, yy, xx/512.0 + val/512.0);
 			}
@@ -360,7 +360,7 @@ int main(void) {
 
     	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
     	fflush(stdout);
-        check_nan(heightmap, __FILE__, __LINE__);
+//        check_nan(heightmap, __FILE__, __LINE__);
 
 
 #ifdef RENDER_SCREEN
@@ -578,8 +578,8 @@ int main(void) {
         			int ind = m_index(temp_map, xx, yy);
         			float val = (temp_map->values[ind] - min_v) / difference;
         			SDL_Color color;
-//        			color = greyscale_gradient(1.0, val);
-        			color = alpine_gradient(BASE_SEA_LEVEL, 1.0-val);
+        			color = greyscale_gradient(1.0, val);
+//        			color = alpine_gradient(BASE_SEA_LEVEL, 1.0-val);
 
         			drawPoint(gRenderer, xx, yy, color.r, color.g, color.b, color.a);
         		}
@@ -603,7 +603,7 @@ int main(void) {
 #ifdef DO_EROSION
 #ifdef DO_THERMAL_EROSION
 		temp = thermal_erosion(heightmap, water);
-		map2d_delete(fractal);
+		map2d_delete(heightmap);
 		heightmap = temp;
 #endif
 #endif

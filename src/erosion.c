@@ -18,7 +18,7 @@
 const float diagdist = 1.41421356237;
 const float diagval = 1.0/1.41421356237;
 
-const float mindist = 0.009;
+const float mindist = 0.017;
 
 const float HYDRAULIC_EROSION_CONSTANT = 0.01;
 const float MOMEMTUM_CONSTANT = 0.95;

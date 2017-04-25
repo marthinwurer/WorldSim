@@ -17,6 +17,9 @@ float evaporate(map2d * water_map, map2d * ground_water, double * removed, map2d
 
 void rainfall(map2d * input, map2d * rain_map, double evaporated);
 
+void calc_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d * old_ns, map2d * new_ns, map2d * convergence);
+
+void calc_new_pressure(map2d * pressure, map2d * convergence, float timestep);
 
 
 #endif /* WEATHER_H_ */

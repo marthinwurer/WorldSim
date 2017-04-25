@@ -70,7 +70,7 @@ threadpool_t * thread_pool;
 
 
 int display_perspective = 0;
-int display_mode = 0;
+int display_mode = 5;
 
 /*#version 430
 
@@ -179,6 +179,16 @@ int main(void) {
 	map2d * evaporated_water = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
 	map2d * water_gradient = sobel_gradient(heightmap, &maxval); // water gradient (show waves
 
+	map2d * pressure = new_map2d(heightmap->width, heightmap->height); // atmospheric pressure at each point
+	map2d * convergence = new_map2d(heightmap->width, heightmap->height); // field towards the point
+	map2d * ns_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the north of the current tile.
+	map2d * ew_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the west of the current tile.
+	map2d * ns_velocity_old = new_map2d(heightmap->width, heightmap->height);
+	map2d * ew_velocity_old = new_map2d(heightmap->width, heightmap->height);
+
+
+
+	int tiles = heightmap->width * heightmap->height;
 
 	// process all of the map tiles
 	// calculate the sea level difference and save it in the water map
@@ -195,7 +205,7 @@ int main(void) {
 
 			map_set(heightmap, xx, yy, val);
 
-#elif 1
+#elif 0
 			/* slopes */
 			float val = value(heightmap, xx, yy) * 0.01;
 			if (xx < 200){
@@ -234,7 +244,22 @@ int main(void) {
 //		}
 //	}
 
+	// set up weather things
 	map2d * temp_map = temp_map_from_heightmap(heightmap, BASE_SEA_LEVEL, 1.0);
+
+	// set up the pressure  and velocity maps
+	for( int ii = 0; ii < tiles; ii++){
+		// p = rt
+		// r = 287.1
+		// 287 *
+		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
+
+		ew_velocity->values[ii] = 0.1;
+		ns_velocity->values[ii] = 0.1;
+	}
+	// get the convergence
+	calc_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
+
 
 
 	// get the total water - to be used to unbreak conservation of mass
@@ -435,6 +460,19 @@ int main(void) {
 								display += 1;
 								display %= 2;
 						break;
+						case(SDLK_p):
+								// calculate a weather time step
+							calc_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
+							calc_new_pressure(pressure, convergence, 0.0001);
+							map2d * temp = ew_velocity;
+							ew_velocity = ew_velocity_old;
+							ew_velocity_old = temp;
+							temp = ns_velocity;
+							ns_velocity = ns_velocity_old;
+							ns_velocity_old = temp;
+
+
+						break;
 
                 	}
                 	break;
@@ -559,24 +597,29 @@ int main(void) {
 
         }
         else if (display_mode == 5){
-        	float min_v = value(temp_map, 0, 0);
+
+        	map2d* disp_map = convergence;
+        	check_nan(disp_map, __FILE__, __LINE__);
+
+        	float min_v = value(disp_map, 0, 0);
         	float max_v = min_v;
 
         	// find the min and max vals
-        	for( int yy = 0; yy < temp_map->height; yy++ ){
-        		for( int xx = 0; xx < temp_map->width; xx++ ){
-        			float val = value(temp_map, xx, yy);
+        	for( int yy = 0; yy < disp_map->height; yy++ ){
+        		for( int xx = 0; xx < disp_map->width; xx++ ){
+        			float val = value(disp_map, xx, yy);
         			min_v = min(min_v, val);
         			max_v = max(max_v, val);
         		}
         	}
+        	printf("min: %f, max: %f\n", min_v, max_v);
 
         	// normalize them
         	float difference = max_v - min_v;
-        	for( int yy = 0; yy < temp_map->height; yy++ ){
-        		for( int xx = 0; xx < temp_map->width; xx++ ){
-        			int ind = m_index(temp_map, xx, yy);
-        			float val = (temp_map->values[ind] - min_v) / difference;
+        	for( int yy = 0; yy < disp_map->height; yy++ ){
+        		for( int xx = 0; xx < disp_map->width; xx++ ){
+        			int ind = m_index(disp_map, xx, yy);
+        			float val = (disp_map->values[ind] - min_v) / difference;
         			SDL_Color color;
         			color = greyscale_gradient(1.0, val);
 //        			color = alpine_gradient(BASE_SEA_LEVEL, 1.0-val);
@@ -628,14 +671,14 @@ int main(void) {
         map2d_delete(oldwatermap);
         oldwatermap = water;
         water = temp;
-//        check_nan(heightmap, __FILE__, __LINE__);
-//        check_nan(water, __FILE__, __LINE__);
+        check_nan(heightmap, __FILE__, __LINE__);
+        check_nan(water, __FILE__, __LINE__);
 
 #ifdef DO_EROSION
 		temp = hydraulic_erosion(heightmap, velocities);
 		map2d_delete(heightmap);
 		heightmap = temp;
-//        check_nan(heightmap, __FILE__, __LINE__);
+        check_nan(heightmap, __FILE__, __LINE__);
 
 #endif
 		maxwater = evaporate(water, ground_water, &vapor, evaporated_water, temp_map);

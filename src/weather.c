@@ -19,9 +19,9 @@ const float RAIN_CONSTANT = 1.0/1024.0/365.0/24.0;
 
 float base_temp(float latitude){
 	if(fabs(latitude) < .2){
-		return 27;
+		return 27 + 273.15;
 	}
-	float val = fabs(latitude) * -67.5 + 40.5;
+	float val = fabs(latitude) * -67.5 + 40.5 + 273.15; // that kelvin tho
 	return val;
 }
 
@@ -119,3 +119,193 @@ void rainfall(map2d *restrict input, map2d *restrict rain_map, double evaporated
 		}
 	}
 }
+
+
+
+void calc_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d * old_ns, map2d * new_ns, map2d * convergence){
+	// i is x, j is y
+
+	// calculate ew and ns for polar line
+	for( int xx = 0; xx < pressure->width; ++xx){
+		int index = m_index(pressure, xx, 0);
+		int west = m_index(pressure, xx - 1, 0);
+
+		new_ew->values[index] = .5 * ((old_ew->values[index] ) +
+				(pressure->values[index] + pressure->values[west]));
+		new_ns->values[index] = 0;
+//				.5 * ((old_ns->values[index] + old_ns->values[west]) +
+//				(pressure->values[index]));
+	}
+
+
+	for( int yy = 1; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int west = m_index(pressure, xx - 1, yy);
+
+			new_ew->values[index] = .55 * ((old_ew->values[index] + old_ew->values[north]) +
+					(pressure->values[index] + pressure->values[west]));
+			new_ns->values[index] = .5 * ((old_ns->values[index] + old_ns->values[west]) +
+					(pressure->values[index] - pressure->values[north]));
+		}
+	}
+
+	// do the convergence
+
+	for( int yy = 1; yy < pressure->height; ++yy){
+		// special case for no movement to the north pole.
+//		int zero_ind = m_index(pressure, , 0);
+//		convergence->values[zero_ind] = 0.0; //(new_ew->values[zero_ind] - new_ew->values[m_index(pressure, xx - 1, 0)] +
+//		//							new_ns->values[zero_ind] );
+
+
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int west = m_index(pressure, xx - 1, yy);
+
+			convergence->values[index] = (new_ew->values[index] - new_ew->values[west] +
+					new_ns->values[index] - new_ns->values[north]);
+		}
+	}
+
+	for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, 0);
+			int west = m_index(pressure, xx - 1, 0);
+
+			convergence->values[index] = (new_ew->values[index] - new_ew->values[west]);// +new_ns->values[index]);
+	}
+
+}
+
+void calc_new_pressure(map2d * pressure, map2d * convergence, float timestep){
+
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+
+			//       PA(I,J)=P(I,J)+(DT1*PIT(I,J)/DXYP(J))
+			pressure->values[index] += convergence->values[index] * timestep;
+
+
+		}
+	}
+}
+
+/*
+ * basically advecv
+ */
+void move_air_velocities(
+		map2d * pressure,
+		map2d * old_ew,
+		map2d * new_ew,
+		map2d * old_ns,
+		map2d * new_ns,
+		map2d * convergence,
+		float timestep){
+
+	map2d * change_ns = new_map2d(pressure->width, pressure->height);
+	map2d * change_ew = new_map2d(pressure->width, pressure->height);
+
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int west = m_index(pressure, xx - 1, yy);
+			int nw = m_index(pressure, xx - 1, yy - 1);
+
+
+			// west-east contribution
+			//       FLUX=DT12*(PU(IP1,J,L)+PU(IP1,J-1,L)+PU(I,J,L)+PU(I,J-1,L))
+			float flux = timestep / 12 *
+					( new_ew->values[west] + new_ew->values[nw] + new_ew->values[index] + new_ew->values[north]);
+			// FLUX*(U(IP1,J,L)+U(I,J,L))
+			float flux_ew = flux * ( new_ew->values[west] + new_ew->values[index]);
+
+			// update the change in velocities
+			change_ew->values[west] += flux_ew;
+			change_ew->values[index]-= flux_ew;
+
+			float flux_ns = flux * ( new_ew->values[west] + new_ew->values[index]);
+
+			// update the change in velocities
+			change_ns->values[west] += flux_ns;
+			change_ns->values[index]-= flux_ns;
+
+
+			// north-south contribution
+			//       FLUX=DT12*(PV(I,J,L)+PV(IP1,J,L)+PV(I,J+1,L)+PV(IP1,J+1,L))       2066.
+			flux = timestep / 12 *
+					( new_ns->values[index] + new_ns->values[west] + new_ns->values[north] + new_ns->values[nw]);
+
+			flux_ew = flux * ( new_ns->values[north] + new_ns->values[index]);
+
+			// update the change in velocities
+			change_ew->values[north] += flux_ew;
+			change_ew->values[index]-= flux_ew;
+
+			flux_ns = flux * ( new_ns->values[north] + new_ns->values[index]);
+
+			// update the change in velocities
+			change_ns->values[north] += flux_ns;
+			change_ns->values[index]-= flux_ns;
+
+
+
+		}
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

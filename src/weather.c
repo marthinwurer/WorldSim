@@ -503,6 +503,19 @@ void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, flo
 			change->values[index] += ew_val;
 			change->values[west] -= ew_val;
 
+			float ns_val =  (ns_velocity->values[north]);// + ew_velocity->values[index]);
+
+			ns_val = (ns_val * .5 * (tracer->values[north] + tracer->values[index])) * timestep;
+
+			 // the maximum change can be the amount of tracer that exists in the tile /2
+			ns_val = max(-(tracer->values[index]/4), ns_val);
+			// check the other tile too
+			ns_val = min((tracer->values[north]/4), ns_val);
+
+
+			change->values[index] += ns_val;
+			change->values[north] -= ns_val;
+
 		}
 
 		//      QT(I,J,L)=QT(I,J,L)+(FLUXQ(IM1)-FLUXQ(I))

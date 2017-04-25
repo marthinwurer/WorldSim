@@ -291,17 +291,20 @@ int main(void) {
 		// p = rt
 		// r = 287.1
 		// 287 *
-//		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
-		pressure->values[ii] = 1000.0;
+		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
+//		pressure->values[ii] = 1000.0;
 
 		ew_velocity->values[ii] = 0.0;
 		ns_velocity->values[ii] = 0.0;
 	}
 
 	map_set(ew_velocity, 20, 20, -1000);
-	for(int yy = 0; yy < heightmap->height; ++yy){
-		map_set(tracer, 30, yy, 1.0);
-
+	for( int yy = 0; yy < heightmap->height; yy++){
+		for( int xx = 0; xx < heightmap->width; xx++){
+			if( xx % 32 == 8 || yy % 32 == 8){
+				map_set(tracer, xx, yy, 1.0);
+			}
+		}
 	}
 	// get the convergence
 	calc_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
@@ -435,7 +438,7 @@ int main(void) {
     for(;;){
         gettimeofday(&start, NULL);
 
-    	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
+//    	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
     	fflush(stdout);
 //        check_nan(heightmap, __FILE__, __LINE__);
 
@@ -646,15 +649,30 @@ int main(void) {
         }
         else if (display_mode == 5){
 
+        	map2d * disp_map = tracer;
+
         	check_nan(tracer, __FILE__, __LINE__);
 
-        	render_map(gRenderer, tracer, 0, 0);
+        	render_map(gRenderer, disp_map, 0, 0);
         	render_map(gRenderer, ew_velocity, heightmap->width, 0);
         	render_map(gRenderer, pressure, heightmap->width * 2, 0);
 
-        	printf("value at mouse: %f\n", value(ew_velocity, mouse_x, mouse_y));
+        	printf("value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
 
+//        	SDL_SetWindowTitle(window, )
 
+        	float min_v = value(disp_map, 0, 0);
+        	float max_v = min_v;
+
+        	// find the min and max vals
+        	for( int yy = 0; yy < disp_map->height; yy++ ){
+        		for( int xx = 0; xx < disp_map->width; xx++ ){
+        			float val = value(disp_map, xx, yy);
+        			min_v = min(min_v, val);
+        			max_v = max(max_v, val);
+        		}
+        	}
+        	printf("min: %f, max: %f\n", min_v, max_v);
 
 
         }
@@ -753,7 +771,7 @@ int main(void) {
         	}
 
         }
-        play = 0;
+//        play = 0;
         // get the time elapsed
         gettimeofday(&end, NULL);
 

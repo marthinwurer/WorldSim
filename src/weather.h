@@ -23,4 +23,10 @@ void calc_new_pressure(map2d * pressure, map2d * convergence, float timestep);
 
 void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d * old_ns, map2d * new_ns, map2d * convergence);
 
+void advect_velocities(map2d * old_ew, map2d * new_ew, map2d * old_ns, map2d * new_ns, float timestep);
+
+void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, float timestep);
+
+
+
 #endif /* WEATHER_H_ */

@@ -309,7 +309,7 @@ void move_air_velocities(
 			change_ew->values[west] += flux_ew;
 			change_ew->values[index]-= flux_ew;
 
-			float flux_ns = flux * ( new_ew->values[west] + new_ew->values[index]);
+			float flux_ns = flux * ( new_ns->values[west] + new_ns->values[index]);
 
 			// update the change in velocities
 			change_ns->values[west] += flux_ns;
@@ -321,7 +321,7 @@ void move_air_velocities(
 			flux = timestep / 12 *
 					( new_ns->values[index] + new_ns->values[west] + new_ns->values[north] + new_ns->values[nw]);
 
-			flux_ew = flux * ( new_ns->values[north] + new_ns->values[index]);
+			flux_ew = flux * ( new_ew->values[north] + new_ew->values[index]);
 
 			// update the change in velocities
 			change_ew->values[north] += flux_ew;
@@ -357,8 +357,10 @@ void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d *
 	int height = pressure->height;
 	int width =  pressure->width;
 
+	float friction = 0.01;
 
-	// do the rest
+
+	// do velocity
 	for( int yy = 0; yy < pressure->height - 1; ++yy){
 		for( int xx = 0; xx < pressure->width; ++xx){
 			int index = m_index(pressure, xx, yy);
@@ -367,8 +369,16 @@ void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d *
 			int west = m_index(pressure, xx - 1, yy);
 			int east = m_index(pressure, xx + 1, yy);
 
-			new_ew->values[index] = old_ew->values[index] + pressure->values[index] - pressure->values[east];
-			new_ns->values[index] = old_ns->values[index] + pressure->values[index] - pressure->values[south];
+			float ew_val = old_ew->values[index];
+			float ns_val = old_ns->values[index];
+
+			// apply friction
+			ew_val = signof(ew_val) * max( 0.0, fabs(ew_val) - friction);
+			ns_val = signof(ns_val) * max( 0.0, fabs(ns_val) - friction);
+
+			new_ew->values[index] = ew_val + pressure->values[index] - pressure->values[east];
+			new_ns->values[index] = ns_val + pressure->values[index] - pressure->values[south];
+
 		}
 	}
 
@@ -376,12 +386,13 @@ void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d *
 	for( int xx = 0; xx < pressure->width; ++xx){
 		int yy = height - 1;
 		int index = m_index(pressure, xx, yy);
-		int north = m_index(pressure, xx, yy - 1);
-		int south = m_index(pressure, xx, yy + 1);
-		int west = m_index(pressure, xx - 1, yy);
 		int east = m_index(pressure, xx + 1, yy);
 
-		new_ew->values[index] = ( old_ew->values[index] + (pressure->values[index] - pressure->values[east]));
+		float ew_val = old_ew->values[index] + pressure->values[index] - pressure->values[east];
+
+		// apply friction
+		new_ew->values[index] = signof(ew_val) * max( 0.0, fabs(ew_val) - friction);
+
 		new_ns->values[index] = 0.0;
 	}
 
@@ -402,10 +413,113 @@ void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d *
 
 }
 
+void advect_velocities(map2d * old_ew, map2d * new_ew, map2d * old_ns, map2d * new_ns, float timestep){
+
+	map2d * change_ns = new_map2d(old_ew->width, old_ew->height);
+	map2d * change_ew = new_map2d(old_ew->width, old_ew->height);
+
+	for( int yy = 0; yy < old_ew->height; ++yy){
+		for( int xx = 0; xx < old_ew->width; ++xx){
+			int index = m_index(old_ew, xx, yy);
+			int north = m_index(old_ew, xx, yy - 1);
+			int south = m_index(old_ew, xx, yy + 1);
+			int west = m_index(old_ew, xx - 1, yy);
+			int southwest = m_index(old_ew, xx - 1, yy + 1);
+
+			// do east-west advection first
+			float ew_val = .5 * (old_ew->values[west] + old_ew->values[index]);
+			float ns_val = .5 * (old_ew->values[west] + old_ew->values[southwest]);
+
+			ew_val = (ew_val + .5 * (new_ew->values[west] + new_ew->values[index])) * timestep;
+
+			change_ew->values[index] -= ew_val;
+			change_ew->values[west] += ew_val;
+
+//			ns_val = (ns_val + .5 * (old_ns->values[west] + old_ns->values[index])) * timestep;
+//
+//			change_ns->values[index] += ns_val;
+//			change_ns->values[west] -= ns_val;
 
 
+			// now do north-south advection
+//			ew_val = .5 * (old_ns->values[west] + old_ns->values[index]);
+//			ns_val = .5 * (old_ns->values[north] + old_ns->values[index]);
+//
+//			ns_val = (ns_val + ns_val) * timestep;
+//
+//			change_ns->values[index] += ns_val;
+//			change_ns->values[west] -= ns_val;
+
+//			ew_val = (ew_val + .5 * (old_ew->values[west] + old_ew->values[southwest])) * timestep;
+//
+//			change_ew->values[southwest] += ew_val;
+//			change_ew->values[west] -= ew_val;
+
+		}
+	}
+
+	// make the changes!
+	for( int yy = 0; yy < old_ew->height; ++yy){
+		for( int xx = 0; xx < old_ew->width; ++xx){
+			int index = m_index(old_ew, xx, yy);
+
+			new_ew->values[index] += change_ew->values[index];
+			new_ns->values[index] += change_ns->values[index];
+
+		}
+	}
+
+	map2d_delete(change_ew);
+	map2d_delete(change_ns);
 
 
+}
+
+
+void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, float timestep){
+
+	map2d * change = new_map2d(ew_velocity->width, ew_velocity->height);
+
+	for( int yy = 0; yy < ew_velocity->height; ++yy){
+		for( int xx = 0; xx < ew_velocity->width; ++xx){
+			int index = m_index(ew_velocity, xx, yy);
+			int north = m_index(ew_velocity, xx, yy - 1);
+			int south = m_index(ew_velocity, xx, yy + 1);
+			int west = m_index(ew_velocity, xx - 1, yy);
+			int southwest = m_index(ew_velocity, xx - 1, yy + 1);
+
+			// FLUXQ(I)=DT2*PU(I,J,L)*(Q(I,J,L)+Q(IP1,J,L))
+			// do east-west advection first
+			float ew_val =  (ew_velocity->values[west]);// + ew_velocity->values[index]);
+
+			ew_val = (ew_val * .5 * (tracer->values[west] + tracer->values[index])) * timestep;
+
+			 // the maximum change can be the amount of tracer that exists in the tile /2
+			ew_val = max(-(tracer->values[index]/4), ew_val);
+			// check the other tile too
+			ew_val = min((tracer->values[west]/4), ew_val);
+
+
+			change->values[index] += ew_val;
+			change->values[west] -= ew_val;
+
+		}
+
+		//      QT(I,J,L)=QT(I,J,L)+(FLUXQ(IM1)-FLUXQ(I))
+	}
+
+	// make the changes!
+	for( int yy = 0; yy < ew_velocity->height; ++yy){
+		for( int xx = 0; xx < ew_velocity->width; ++xx){
+			int index = m_index(ew_velocity, xx, yy);
+
+			tracer->values[index] += change->values[index];
+
+		}
+	}
+
+	map2d_delete(change);
+}
 
 
 

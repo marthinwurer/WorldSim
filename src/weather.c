@@ -10,6 +10,7 @@
 
 
 #include <math.h>
+#include <stdlib.h>
 
 const float RAIN_CONSTANT = 1.0/1024.0/365.0/24.0;
 
@@ -123,58 +124,139 @@ void rainfall(map2d *restrict input, map2d *restrict rain_map, double evaporated
 
 
 void calc_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d * old_ns, map2d * new_ns, map2d * convergence){
-	// i is x, j is y
-
-	// calculate ew and ns for polar line
-	for( int xx = 0; xx < pressure->width; ++xx){
-		int index = m_index(pressure, xx, 0);
-		int west = m_index(pressure, xx - 1, 0);
-
-		new_ew->values[index] = .5 * ((old_ew->values[index] ) +
-				(pressure->values[index] + pressure->values[west]));
-		new_ns->values[index] = 0;
-//				.5 * ((old_ns->values[index] + old_ns->values[west]) +
-//				(pressure->values[index]));
-	}
+	// i is x is U, j is y is V
 
 
-	for( int yy = 1; yy < pressure->height; ++yy){
+	int height = pressure->height;
+	int width = pressure ->width;
+
+
+	for( int yy = 1; yy < pressure->height - 1; ++yy){
 		for( int xx = 0; xx < pressure->width; ++xx){
 			int index = m_index(pressure, xx, yy);
 			int north = m_index(pressure, xx, yy - 1);
+			int south = m_index(pressure, xx, yy + 1);
 			int west = m_index(pressure, xx - 1, yy);
+			int east = m_index(pressure, xx + 1, yy);
 
-			new_ew->values[index] = .55 * ((old_ew->values[index] + old_ew->values[north]) +
-					(pressure->values[index] + pressure->values[west]));
-			new_ns->values[index] = .5 * ((old_ns->values[index] + old_ns->values[west]) +
+//			PU(I,J,L)=.25*DYP(J)*SPA(I,J,L)*(P(I,J)+P(IP1,J))
+			float spa = (old_ew->values[index] + old_ew->values[south]);
+			new_ew->values[index] = .25 * ((spa) * (pressure->values[index] + pressure->values[west]));
+			// PV(I,J,L)=.25*DXV(J)*(V(I,J,L)+V(IM1,J,L))*(P(I,J)+P(I,J-1))
+			new_ns->values[index] = .25 * ((old_ns->values[index] + old_ns->values[west]) *
 					(pressure->values[index] - pressure->values[north]));
 		}
 	}
+	
+	// compute ns at south pole
+	for( int xx = 0; xx < pressure->width; ++xx){
+		int yy = height - 1;
+		int index = m_index(pressure, xx, yy);
+		int north = m_index(pressure, xx, yy - 1);
+		int south = m_index(pressure, xx, yy + 1);
+		int west = m_index(pressure, xx - 1, yy);
+		int east = m_index(pressure, xx + 1, yy);
+		new_ns->values[index] = .25 * ((old_ns->values[index] + old_ns->values[west]) *
+				(pressure->values[index] - pressure->values[north]));
+	}
+
+	// calculate ew and ns for polar line
+
+	float v_ns_n = 0;
+	float v_ns_s = 0;
+	float v_ew_n = 0; // PUN
+	float v_ew_s = 0; // PUS
+
+	for( int xx = 0; xx < pressure->width; ++xx){
+		int index_n = m_index(pressure, xx, 1);
+		int index_s = m_index(pressure, xx, pressure->height - 1);
+
+		v_ns_n += old_ns->values[index_n];
+		v_ns_s += old_ns->values[index_s];
+		v_ew_n += new_ew->values[index_n];
+		v_ew_s += new_ew->values[index_s];
+
+
+
+//		int west = m_index(pressure, xx - 1, 0);
+//
+//		new_ew->values[index] = .5 * ((old_ew->values[index] ) +
+//				(pressure->values[index] + pressure->values[west]));
+//		new_ns->values[index] = 0;
+////				.5 * ((old_ns->values[index] + old_ns->values[west]) +
+////				(pressure->values[index]));
+	}
+//    PUS=.25*DYP(2)*PUS*P(1,1)/FIM
+	int southwest = m_index(pressure, 0, pressure->height - 1);
+	v_ew_n = .25 * v_ew_n * pressure->values[0] / pressure->width;
+	v_ew_s = .25 * v_ew_s * pressure->values[southwest] / pressure->width;
+	v_ns_n /= width;
+	v_ns_s /= width;
+
+	// dummy array time
+	float * dummy_n = calloc(width, sizeof(float));
+	float * dummy_s = calloc(width, sizeof(float));
+	float pbs = 0;
+	float pbn = 0;
+	for( int xx = 1; xx < pressure->width; ++xx){
+		int index_n = m_index(pressure, xx, 1);
+		int index_s = m_index(pressure, xx, pressure->height - 1);
+
+		// I think i might have a different idea of north and south... no matter, as long as I'm consistent
+//	      DUMMYS(I)=DUMMYS(I-1)+(PV(I,2,L)-PVS)
+		dummy_s[xx] = dummy_s[xx -1] + new_ew->values[index_s] - v_ns_s;
+		dummy_n[xx] = dummy_n[xx -1] + new_ew->values[index_n] - v_ns_n;
+		pbs += dummy_s[xx];
+		pbn += dummy_n[xx];
+	}
+
+	pbs /= width;
+	pbn /= width;
+
+	// do the final calculations
+	for( int xx = 1; xx < pressure->width; ++xx){
+		int index_n = m_index(pressure, xx, 0);
+		int index_s = m_index(pressure, xx, pressure->height - 1);
+
+//	      PU(I,1,L)=3.*(PBS-DUMMYS(I)+PUS) // south
+		// I do not get these at all.
+		new_ew->values[index_s] = 3.0*(pbs - dummy_s[xx] + v_ns_s);
+		new_ew->values[index_n] = 3.0*(dummy_s[xx] - pbn + v_ns_n);
+	}
+
+	free( dummy_s );
+	free( dummy_n );
+
+
+
+
+
+
+
+
 
 	// do the convergence
 
-	for( int yy = 1; yy < pressure->height; ++yy){
-		// special case for no movement to the north pole.
-//		int zero_ind = m_index(pressure, , 0);
-//		convergence->values[zero_ind] = 0.0; //(new_ew->values[zero_ind] - new_ew->values[m_index(pressure, xx - 1, 0)] +
-//		//							new_ns->values[zero_ind] );
-
+	for( int yy = 1; yy < pressure->height - 1; ++yy){
 
 		for( int xx = 0; xx < pressure->width; ++xx){
 			int index = m_index(pressure, xx, yy);
-			int north = m_index(pressure, xx, yy - 1);
+			int south = m_index(pressure, xx, yy + 1);
 			int west = m_index(pressure, xx - 1, yy);
 
-			convergence->values[index] = (new_ew->values[index] - new_ew->values[west] +
-					new_ns->values[index] - new_ns->values[north]);
+			// CONV(I,J,L)=(PU(IM1,J,L)-PU(I,J,L)+PV(I,J,L)-PV(I,J+1,L))*DSIG(L)
+
+			convergence->values[index] = (new_ew->values[west] - new_ew->values[index] +
+					new_ns->values[index] - new_ns->values[south]);
 		}
 	}
 
 	for( int xx = 0; xx < pressure->width; ++xx){
-			int index = m_index(pressure, xx, 0);
-			int west = m_index(pressure, xx - 1, 0);
+		int index_n = m_index(pressure, xx, 0);
+		int index_s = m_index(pressure, xx, pressure->height - 1);
 
-			convergence->values[index] = (new_ew->values[index] - new_ew->values[west]);// +new_ns->values[index]);
+		convergence->values[index_n] = v_ns_n;
+		convergence->values[index_s] = -v_ns_s;
 	}
 
 }
@@ -267,6 +349,58 @@ void move_air_velocities(
 
 
 
+void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d * old_ns, map2d * new_ns, map2d * convergence){
+
+	// assume that ew is velocity towards the east and located to the east (positive goes east, negative goes west)
+	// assume that ns goes south abd is located to the south
+
+	int height = pressure->height;
+	int width =  pressure->width;
+
+
+	// do the rest
+	for( int yy = 0; yy < pressure->height - 1; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int south = m_index(pressure, xx, yy + 1);
+			int west = m_index(pressure, xx - 1, yy);
+			int east = m_index(pressure, xx + 1, yy);
+
+			new_ew->values[index] = old_ew->values[index] + pressure->values[index] - pressure->values[east];
+			new_ns->values[index] = old_ns->values[index] + pressure->values[index] - pressure->values[south];
+		}
+	}
+
+	// do polar ns and ew
+	for( int xx = 0; xx < pressure->width; ++xx){
+		int yy = height - 1;
+		int index = m_index(pressure, xx, yy);
+		int north = m_index(pressure, xx, yy - 1);
+		int south = m_index(pressure, xx, yy + 1);
+		int west = m_index(pressure, xx - 1, yy);
+		int east = m_index(pressure, xx + 1, yy);
+
+		new_ew->values[index] = ( old_ew->values[index] + (pressure->values[index] - pressure->values[east]));
+		new_ns->values[index] = 0.0;
+	}
+
+
+	// do convergence
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int west = m_index(pressure, xx - 1, yy);
+
+			convergence->values[index] =
+					- new_ew->values[index] - new_ns->values[index] +
+					new_ew->values[west] + new_ns->values[north];
+		}
+	}
+
+
+}
 
 
 

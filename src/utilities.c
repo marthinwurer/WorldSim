@@ -28,3 +28,18 @@ int check_nan(map2d * data, const char * file, int line){
 		}
 	}
 }
+
+
+int signof(float val){
+	return (x > 0) - (x < 0);
+}
+
+
+
+
+
+
+
+
+
+

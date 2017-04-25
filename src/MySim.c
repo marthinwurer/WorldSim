@@ -58,7 +58,7 @@
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 10; // the power of two that represents the current map size
+const int FRACTAL_POWER = 9; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.
@@ -462,8 +462,8 @@ int main(void) {
 						break;
 						case(SDLK_p):
 								// calculate a weather time step
-							calc_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
-							calc_new_pressure(pressure, convergence, 0.0001);
+							my_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
+							calc_new_pressure(pressure, convergence, 0.01);
 							map2d * temp = ew_velocity;
 							ew_velocity = ew_velocity_old;
 							ew_velocity_old = temp;
@@ -598,7 +598,7 @@ int main(void) {
         }
         else if (display_mode == 5){
 
-        	map2d* disp_map = convergence;
+        	map2d* disp_map = pressure;
         	check_nan(disp_map, __FILE__, __LINE__);
 
         	float min_v = value(disp_map, 0, 0);

@@ -36,4 +36,6 @@ static inline float max(float a, float b)
 
 int check_nan(map2d * data, const char * file, int line);
 
+int signof(float val);
+
 #endif /* UTILITIES_H_ */

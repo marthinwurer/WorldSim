@@ -298,11 +298,16 @@ int main(void) {
 		ns_velocity->values[ii] = 0.0;
 	}
 
-	map_set(ew_velocity, 20, 20, -1000);
+	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
 			if( xx % 32 == 8 || yy % 32 == 8){
 				map_set(tracer, xx, yy, 1.0);
+			}
+
+			if( yy == heightmap->height - 1){
+				ns_velocity->values[m_index(ns_velocity, xx, yy)] = 0.0;
+
 			}
 		}
 	}
@@ -438,7 +443,7 @@ int main(void) {
     for(;;){
         gettimeofday(&start, NULL);
 
-//    	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
+    	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
     	fflush(stdout);
 //        check_nan(heightmap, __FILE__, __LINE__);
 
@@ -659,7 +664,10 @@ int main(void) {
 
         	printf("value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
 
-//        	SDL_SetWindowTitle(window, )
+        	char title[128];
+        	sprintf(title, "value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
+
+        	SDL_SetWindowTitle(window, title);
 
         	float min_v = value(disp_map, 0, 0);
         	float max_v = min_v;
@@ -718,6 +726,10 @@ int main(void) {
         	calc_new_pressure(pressure, convergence, timestep);
 //        	advect_velocities(ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, timestep);
         	advect_tracer(ew_velocity, ns_velocity, tracer, timestep);
+        	// try to advect momentum
+//        	advect_tracer(ew_velocity, ns_velocity, ew_velocity_old, timestep);
+//        	advect_momentum(ew_velocity, ns_velocity, ns_velocity_old, timestep);
+
         	temp = ew_velocity;
         	ew_velocity = ew_velocity_old;
         	ew_velocity_old = temp;

@@ -27,6 +27,7 @@ void advect_velocities(map2d * old_ew, map2d * new_ew, map2d * old_ns, map2d * n
 
 void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, float timestep);
 
+void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, float timestep);
 
 
 #endif /* WEATHER_H_ */

@@ -488,13 +488,12 @@ void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, flo
 			int west = m_index(ew_velocity, xx - 1, yy);
 			int southwest = m_index(ew_velocity, xx - 1, yy + 1);
 
-			// FLUXQ(I)=DT2*PU(I,J,L)*(Q(I,J,L)+Q(IP1,J,L))
 			// do east-west advection first
 			float ew_val =  (ew_velocity->values[west]);// + ew_velocity->values[index]);
 
 			ew_val = (ew_val * .5 * (tracer->values[west] + tracer->values[index])) * timestep;
 
-			 // the maximum change can be the amount of tracer that exists in the tile /2
+			 // the maximum change can be the amount of tracer that exists in the tile /4
 			ew_val = max(-(tracer->values[index]/4), ew_val);
 			// check the other tile too
 			ew_val = min((tracer->values[west]/4), ew_val);
@@ -507,7 +506,7 @@ void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, flo
 
 			ns_val = (ns_val * .5 * (tracer->values[north] + tracer->values[index])) * timestep;
 
-			 // the maximum change can be the amount of tracer that exists in the tile /2
+			 // the maximum change can be the amount of tracer that exists in the tile /4
 			ns_val = max(-(tracer->values[index]/4), ns_val);
 			// check the other tile too
 			ns_val = min((tracer->values[north]/4), ns_val);
@@ -536,7 +535,62 @@ void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, flo
 
 
 
+void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, float timestep){
 
+	map2d * change = new_map2d(ew_velocity->width, ew_velocity->height);
+
+	for( int yy = 0; yy < ew_velocity->height; ++yy){
+		for( int xx = 0; xx < ew_velocity->width; ++xx){
+			int index = m_index(ew_velocity, xx, yy);
+			int north = m_index(ew_velocity, xx, yy - 1);
+			int south = m_index(ew_velocity, xx, yy + 1);
+			int west = m_index(ew_velocity, xx - 1, yy);
+			int southwest = m_index(ew_velocity, xx - 1, yy + 1);
+
+			// do east-west advection first
+			float ew_val =  (ew_velocity->values[west]);// + ew_velocity->values[index]);
+
+			ew_val = (ew_val * .5 * (tracer->values[west] + tracer->values[index])) * timestep;
+
+			 // the maximum change can be the amount of tracer that exists in the tile /4
+			ew_val = max(-(tracer->values[index]/4), ew_val);
+			// check the other tile too
+			ew_val = min((tracer->values[west]/4), ew_val);
+
+
+			change->values[index] -= ew_val;
+			change->values[west] += ew_val;
+
+			float ns_val =  (ns_velocity->values[north]);// + ew_velocity->values[index]);
+
+			ns_val = (ns_val * .5 * (tracer->values[north] + tracer->values[index])) * timestep;
+
+			 // the maximum change can be the amount of tracer that exists in the tile /4
+			ns_val = max(-(tracer->values[index]/4), ns_val);
+			// check the other tile too
+			ns_val = min((tracer->values[north]/4), ns_val);
+
+
+			change->values[index] -= ns_val;
+			change->values[north] += ns_val;
+
+		}
+
+		//      QT(I,J,L)=QT(I,J,L)+(FLUXQ(IM1)-FLUXQ(I))
+	}
+
+	// make the changes!
+	for( int yy = 0; yy < ew_velocity->height; ++yy){
+		for( int xx = 0; xx < ew_velocity->width; ++xx){
+			int index = m_index(ew_velocity, xx, yy);
+
+			tracer->values[index] += change->values[index];
+
+		}
+	}
+
+	map2d_delete(change);
+}
 
 
 

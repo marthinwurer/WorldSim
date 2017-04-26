@@ -11,7 +11,8 @@
 #define _BSD_SOURCE
 
 #define RENDER_SCREEN
-#define RENDER_GL
+//#define RENDER_GL
+//#define DO_CL
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,11 +30,13 @@
 
 #endif
 
+#ifdef DO_CL
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>
+#endif
 #endif
 
 #include <time.h>

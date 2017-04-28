@@ -209,6 +209,7 @@ int main(void) {
     map2d * sediment = DSCreate(FRACTAL_POWER, &my_rand); // the sediment layer. gravel, dirt, sand, etc.
     map2d * gradient = sobel_gradient(heightmap, &maxval); // the slope of the current heightmap
 	map2d * boundaries = DSCreate(FRACTAL_POWER, &my_rand); // plate boundaries
+	map2d * real_height = new_map2d(heightmap->width, heightmap->height);
 
 	map2d * water = new_map2d(heightmap->width, heightmap->height); // the water map
     map2d * oldwatermap = new_map2d(heightmap->width, heightmap->height);
@@ -258,7 +259,7 @@ int main(void) {
 			}
 #elif 0
 			/* single slope */
-			map_set(heightmap, xx, yy, xx/1024.0);
+			map_set(heightmap, xx, yy, xx/(float)heightmap->width);
 #elif 0
 			/* flat */
 			map_set(heightmap, xx, yy, BASE_SEA_LEVEL);
@@ -294,14 +295,15 @@ int main(void) {
 		// p = rt
 		// r = 287.1
 		// 287 *
-		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
-//		pressure->values[ii] = 1000.0;
+//		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
+		pressure->values[ii] = 1000.0;
 
 		ew_velocity->values[ii] = 0.0;
 		ns_velocity->values[ii] = 0.0;
 	}
 
-//	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
+	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
+//	map_set(ew_velocity, heightmap->width/2, -10, -1000);
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
 //			if( xx % 32 == 8 || yy % 32 == 8){
@@ -657,13 +659,13 @@ int main(void) {
         }
         else if (display_mode == 5){
 
-        	map2d * disp_map = tracer;
+        	map2d * disp_map = pressure;
 
         	check_nan(convergence, __FILE__, __LINE__);
 
         	render_map(gRenderer, disp_map, 0, 0);
         	render_map(gRenderer, convergence, heightmap->width, 0);
-        	render_map(gRenderer, pressure, heightmap->width * 2, 0);
+        	render_map(gRenderer, tracer, heightmap->width * 2, 0);
 
         	printf("value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
 
@@ -733,6 +735,10 @@ int main(void) {
 //        	advect_tracer(ew_velocity, ns_velocity, ew_velocity_old, timestep);
         	advect_momentum(ew_velocity, ns_velocity, ns_velocity_old, timestep);
         	advect_momentum(ew_velocity, ns_velocity, ew_velocity_old, timestep);
+
+        	calc_real_height(heightmap, water, real_height, BASE_SEA_LEVEL);
+
+        	geopotential(real_height, pressure, ew_velocity_old, ns_velocity_old, timestep);
 
         	temp = ew_velocity;
         	ew_velocity = ew_velocity_old;

@@ -10,6 +10,9 @@
 
 #include "map2d.h"
 
+
+#define GAS_CONSTANT_DRY_AIR		287.1
+
 float base_temp(float latitude);
 map2d * temp_map_from_heightmap(map2d* heightmap, float sealevel, float max);
 
@@ -29,5 +32,8 @@ void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, flo
 
 void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, float timestep);
 
+void calc_real_height(map2d * heightmap, map2d * water,  map2d * real_height, float sealevel);
+
+void geopotential(map2d * heightmap, map2d * pressure,  map2d * ew_velocity, map2d * ns_velocity, float timestep);
 
 #endif /* WEATHER_H_ */

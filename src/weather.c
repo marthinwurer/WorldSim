@@ -357,7 +357,7 @@ void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d *
 	int height = pressure->height;
 	int width =  pressure->width;
 
-	float friction = 0.1;
+	float friction = 0.9;
 
 
 	// do velocity
@@ -373,8 +373,8 @@ void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d *
 			float ns_val = old_ns->values[index];
 
 			// apply friction
-			ew_val = signof(ew_val) * max( 0.0, fabs(ew_val) - friction);
-			ns_val = signof(ns_val) * max( 0.0, fabs(ns_val) - friction);
+			ew_val = signof(ew_val) * max( 0.0, fabs(ew_val) *friction);
+			ns_val = signof(ns_val) * max( 0.0, fabs(ns_val) * friction);
 
 			new_ew->values[index] = ew_val + pressure->values[index] - pressure->values[east];
 			new_ns->values[index] = ns_val + pressure->values[index] - pressure->values[south];
@@ -480,45 +480,72 @@ void advect_tracer(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, flo
 
 	map2d * change = new_map2d(ew_velocity->width, ew_velocity->height);
 
-	for( int yy = 0; yy < ew_velocity->height; ++yy){
+	for( int yy = 0; yy < ew_velocity->height - 1; ++yy){
 		for( int xx = 0; xx < ew_velocity->width; ++xx){
 			int index = m_index(ew_velocity, xx, yy);
-			int north = m_index(ew_velocity, xx, yy - 1);
 			int south = m_index(ew_velocity, xx, yy + 1);
-			int west = m_index(ew_velocity, xx - 1, yy);
-			int southwest = m_index(ew_velocity, xx - 1, yy + 1);
+			int east = m_index(ew_velocity, xx + 1, yy);
 
 			// do east-west advection first
-			float ew_val =  (ew_velocity->values[west]);// + ew_velocity->values[index]);
+			float ew_val =  (ew_velocity->values[index]);// + ew_velocity->values[index]);
 
-			ew_val = (ew_val * .5 * (tracer->values[west] + tracer->values[index])) * timestep;
-
-			 // the maximum change can be the amount of tracer that exists in the tile /4
-			ew_val = max(-(tracer->values[index]/4), ew_val);
-			// check the other tile too
-			ew_val = min((tracer->values[west]/4), ew_val);
-
-
-			change->values[index] += ew_val;
-			change->values[west] -= ew_val;
-
-			float ns_val =  (ns_velocity->values[north]);// + ew_velocity->values[index]);
-
-			ns_val = (ns_val * .5 * (tracer->values[north] + tracer->values[index])) * timestep;
+			ew_val = (ew_val * .5 * (tracer->values[east] + tracer->values[index])) * timestep;
 
 			 // the maximum change can be the amount of tracer that exists in the tile /4
-			ns_val = max(-(tracer->values[index]/4), ns_val);
+			ew_val = max(-(tracer->values[east]/4), ew_val);
 			// check the other tile too
-			ns_val = min((tracer->values[north]/4), ns_val);
+			ew_val = min((tracer->values[index]/4), ew_val);
 
 
-			change->values[index] += ns_val;
-			change->values[north] -= ns_val;
+			change->values[east] += ew_val;
+			change->values[index] -= ew_val;
+
+			float ns_val =  (ns_velocity->values[index]);// + ew_velocity->values[index]);
+
+			ns_val = (ns_val * .5 * (tracer->values[index] + tracer->values[south])) * timestep;
+
+			 // the maximum change can be the amount of tracer that exists in the tile /4
+			ns_val = max(-(tracer->values[south]/4), ns_val);
+			// check the other tile too
+			ns_val = min((tracer->values[index]/4), ns_val);
+
+
+			change->values[south] += ns_val;
+			change->values[index] -= ns_val;
 
 		}
 
 		//      QT(I,J,L)=QT(I,J,L)+(FLUXQ(IM1)-FLUXQ(I))
 	}
+
+	// do the poles
+	for( int xx = 0; xx < ew_velocity->width; ++xx){
+
+		int yy = ew_velocity->height - 1;
+
+		int index = m_index(ew_velocity, xx, yy);
+		int south = m_index(ew_velocity, xx, yy + 1);
+		int east = m_index(ew_velocity, xx + 1, yy);
+
+		// do east-west advection first
+		float ew_val =  (ew_velocity->values[index]);// + ew_velocity->values[index]);
+
+		ew_val = (ew_val * .5 * (tracer->values[east] + tracer->values[index])) * timestep;
+
+		 // the maximum change can be the amount of tracer that exists in the tile /4
+		ew_val = max(-(tracer->values[east]/4), ew_val);
+		// check the other tile too
+		ew_val = min((tracer->values[index]/4), ew_val);
+
+
+		change->values[east] += ew_val;
+		change->values[index] -= ew_val;
+
+		// don't do north-south
+
+	}
+
+
 
 	// make the changes!
 	for( int yy = 0; yy < ew_velocity->height; ++yy){
@@ -539,7 +566,7 @@ void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, f
 
 	map2d * change = new_map2d(ew_velocity->width, ew_velocity->height);
 
-	for( int yy = 0; yy < ew_velocity->height; ++yy){
+	for( int yy = 0; yy < ew_velocity->height - 1; ++yy){
 		for( int xx = 0; xx < ew_velocity->width; ++xx){
 			int index = m_index(ew_velocity, xx, yy);
 			int north = m_index(ew_velocity, xx, yy - 1);
@@ -551,12 +578,7 @@ void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, f
 			// do east-west advection first
 			float ew_val =  .5 * (ew_velocity->values[index] + ew_velocity->values[east]);
 
-			ew_val = (ew_val + .5 * (tracer->values[east] +	tracer->values[index])) * timestep;
-
-			 // the maximum change can be the amount of tracer that exists in the tile /4
-//			ew_val = max(-(tracer->values[east]/4), ew_val);
-//			// check the other tile too
-//			ew_val = min((tracer->values[index]/4), ew_val);
+			ew_val = (ew_val + .5 * (tracer->values[east] +	tracer->values[index])) * timestep * .5;
 
 
 			change->values[index] += ew_val;
@@ -564,15 +586,9 @@ void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, f
 
 
 
-			float ns_val = .5 * (ns_velocity->values[index] + ew_velocity->values[south]);
+			float ns_val = (ns_velocity->values[index]);
 
-			ns_val = (ns_val + .5 * (tracer->values[south] + tracer->values[index])) * timestep;
-
-			 // the maximum change can be the amount of tracer that exists in the tile /4
-//			ns_val = max(-(tracer->values[index]/4), ns_val);
-//			// check the other tile too
-//			ns_val = min((tracer->values[north]/4), ns_val);
-
+			ns_val = (ns_val + .5 * (tracer->values[south] + tracer->values[index])) * timestep  * .5;
 
 			change->values[index] += ns_val;
 			change->values[south] -= ns_val;
@@ -581,6 +597,32 @@ void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, f
 
 		//      QT(I,J,L)=QT(I,J,L)+(FLUXQ(IM1)-FLUXQ(I))
 	}
+
+	// poles
+	for( int xx = 0; xx < ew_velocity->width; ++xx){
+
+		int yy = ew_velocity->height - 1;
+
+		int index = m_index(ew_velocity, xx, yy);
+		int north = m_index(ew_velocity, xx, yy - 1);
+		int south = m_index(ew_velocity, xx, yy + 1);
+		int west = m_index(ew_velocity, xx - 1, yy);
+		int east = m_index(ew_velocity, xx + 1, yy);
+		int southwest = m_index(ew_velocity, xx - 1, yy + 1);
+
+		// do east-west advection first
+		float ew_val =  .5 * (ew_velocity->values[index] + ew_velocity->values[east]);
+
+		ew_val = (ew_val + .5 * (tracer->values[east] +	tracer->values[index])) * timestep * .5;
+
+
+		change->values[index] += ew_val;
+		change->values[east] -= ew_val;
+
+	}
+
+
+
 
 	// make the changes!
 	for( int yy = 0; yy < ew_velocity->height; ++yy){
@@ -596,7 +638,91 @@ void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, f
 }
 
 
-void geopotential()
+void calc_real_height(map2d * heightmap, map2d * water,  map2d * real_height, float sealevel){
+	for( int yy = 0; yy < heightmap->height; ++yy){
+		for( int xx = 0; xx < heightmap->width; ++xx){
+			int index = m_index(heightmap, xx, yy);
+
+			real_height->values[index] = (heightmap->values[index] + water->values[index] - sealevel) * 1000;
+		}
+	}
+}
+
+
+void geopotential(map2d * heightmap, map2d * pressure,  map2d * ew_velocity, map2d * ns_velocity, float timestep){
+
+	for( int yy = 0; yy < heightmap->height - 1; ++yy){
+		for( int xx = 0; xx < heightmap->width; ++xx){
+			int index = m_index(heightmap, xx, yy);
+			int south = m_index(heightmap, xx, yy + 1);
+			int east = m_index(heightmap, xx + 1, yy);
+
+			float ew_val =  .5 * (pressure->values[index] + pressure->values[east]);
+
+			ew_val = (ew_val * .5 * (heightmap->values[index] - heightmap->values[east])) * timestep * .5;
+
+
+			ew_velocity->values[index] += ew_val;
+
+			float ns_val =  .5 * (pressure->values[index] + pressure->values[south]);
+
+			ns_val = (ns_val * .5 * (heightmap->values[index] -	heightmap->values[south])) * timestep * .5;
+
+
+			ns_velocity->values[index] += ns_val;
+
+
+
+		}
+	}
+
+	// do pole transition
+
+	for( int xx = 0; xx < heightmap->width; ++xx){
+
+		int yy = heightmap->height - 1;
+
+		int index = m_index(heightmap, xx, yy);
+		int south = m_index(heightmap, xx, yy + 1);
+		int east = m_index(heightmap, xx + 1, yy);
+
+		float ew_val =  .5 * (pressure->values[index] + pressure->values[east]);
+
+		ew_val = (ew_val * .5 * (heightmap->values[index] - heightmap->values[east])) * timestep * .5;
+
+
+		ew_velocity->values[index] += ew_val;
+
+		// do nothing for north-south
+//		ns_velocity->values[index] = 0;
+	}
+
+
+}
+
+
+
+void temperature_pressure(map2d * temperature, map2d * pressure,  map2d * ew_velocity, map2d * ns_velocity, float timestep){
+
+	// calculate the change in pressure
+	//       SPA(I,J,L)=SIG(L)*SP*RGAS*T(I,J,L)*PKDN/PDN
+
+	map2d * change = new_map2d(temperature->width, temperature->height);
+
+	for( int yy = 0; yy < temperature->height - 1; ++yy){
+		for( int xx = 0; xx < temperature->width; ++xx){
+			int index = m_index(temperature, xx, yy);
+
+			change->values[index] = pressure->values[index] * GAS_CONSTANT_DRY_AIR * temperature->values[index];
+		}
+	}
+
+	// calculate the change in velocity due to this.
+
+
+
+}
+
 
 
 

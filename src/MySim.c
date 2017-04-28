@@ -294,14 +294,14 @@ int main(void) {
 		// p = rt
 		// r = 287.1
 		// 287 *
-//		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
-		pressure->values[ii] = 1000.0;
+		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
+//		pressure->values[ii] = 1000.0;
 
 		ew_velocity->values[ii] = 0.0;
 		ns_velocity->values[ii] = 0.0;
 	}
 
-	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
+//	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
 //			if( xx % 32 == 8 || yy % 32 == 8){

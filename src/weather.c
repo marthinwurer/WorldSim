@@ -357,7 +357,7 @@ void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d *
 	int height = pressure->height;
 	int width =  pressure->width;
 
-	float friction = 0.01;
+	float friction = 0.1;
 
 
 	// do velocity
@@ -549,10 +549,7 @@ void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, f
 			int southwest = m_index(ew_velocity, xx - 1, yy + 1);
 
 			// do east-west advection first
-			float ew_val =
-					(ew_velocity->values[index]);
-//										 + ew_velocity->values[east]);
-//					(ew_velocity->values[index]);
+			float ew_val =  .5 * (ew_velocity->values[index] + ew_velocity->values[east]);
 
 			ew_val = (ew_val + .5 * (tracer->values[east] +	tracer->values[index])) * timestep;
 
@@ -565,18 +562,20 @@ void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, f
 			change->values[index] += ew_val;
 			change->values[east] -= ew_val;
 
-//			float ns_val =  (ns_velocity->values[north]);// + ew_velocity->values[index]);
-//
-//			ns_val = (ns_val * .5 * (tracer->values[north] + tracer->values[index])) * timestep;
-//
-//			 // the maximum change can be the amount of tracer that exists in the tile /4
+
+
+			float ns_val = .5 * (ns_velocity->values[index] + ew_velocity->values[south]);
+
+			ns_val = (ns_val + .5 * (tracer->values[south] + tracer->values[index])) * timestep;
+
+			 // the maximum change can be the amount of tracer that exists in the tile /4
 //			ns_val = max(-(tracer->values[index]/4), ns_val);
 //			// check the other tile too
 //			ns_val = min((tracer->values[north]/4), ns_val);
-//
-//
-//			change->values[index] -= ns_val;
-//			change->values[north] += ns_val;
+
+
+			change->values[index] += ns_val;
+			change->values[south] -= ns_val;
 
 		}
 
@@ -595,6 +594,9 @@ void advect_momentum(map2d * ew_velocity, map2d * ns_velocity, map2d * tracer, f
 
 	map2d_delete(change);
 }
+
+
+void geopotential()
 
 
 

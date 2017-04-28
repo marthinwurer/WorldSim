@@ -294,8 +294,8 @@ int main(void) {
 		// p = rt
 		// r = 287.1
 		// 287 *
-		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
-//		pressure->values[ii] = 1000.0;
+//		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
+		pressure->values[ii] = 1000.0;
 
 		ew_velocity->values[ii] = 0.0;
 		ns_velocity->values[ii] = 0.0;
@@ -304,9 +304,9 @@ int main(void) {
 	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
-			if( xx % 32 == 8 || yy % 32 == 8){
+//			if( xx % 32 == 8 || yy % 32 == 8){
 				map_set(tracer, xx, yy, 1.0);
-			}
+//			}
 
 			if( yy == heightmap->height - 1){
 				ns_velocity->values[m_index(ns_velocity, xx, yy)] = 0.0;
@@ -659,10 +659,10 @@ int main(void) {
 
         	map2d * disp_map = tracer;
 
-        	check_nan(tracer, __FILE__, __LINE__);
+        	check_nan(convergence, __FILE__, __LINE__);
 
         	render_map(gRenderer, disp_map, 0, 0);
-        	render_map(gRenderer, ew_velocity, heightmap->width, 0);
+        	render_map(gRenderer, convergence, heightmap->width, 0);
         	render_map(gRenderer, pressure, heightmap->width * 2, 0);
 
         	printf("value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
@@ -731,7 +731,8 @@ int main(void) {
         	advect_tracer(ew_velocity, ns_velocity, tracer, timestep);
         	// try to advect momentum
 //        	advect_tracer(ew_velocity, ns_velocity, ew_velocity_old, timestep);
-//        	advect_momentum(ew_velocity, ns_velocity, ns_velocity_old, timestep);
+        	advect_momentum(ew_velocity, ns_velocity, ns_velocity_old, timestep);
+        	advect_momentum(ew_velocity, ns_velocity, ew_velocity_old, timestep);
 
         	temp = ew_velocity;
         	ew_velocity = ew_velocity_old;

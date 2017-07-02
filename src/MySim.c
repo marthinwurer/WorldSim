@@ -54,8 +54,8 @@
 #include "utilities.h"
 #include "weather.h"
 
-#define DO_EROSION
-//#define DO_THERMAL_EROSION
+//#define DO_EROSION
+#define DO_THERMAL_EROSION
 
 
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
@@ -263,6 +263,11 @@ int main(void) {
 #elif 0
 			/* flat */
 			map_set(heightmap, xx, yy, BASE_SEA_LEVEL);
+#elif 0
+			float val = 1 / (value(heightmap, xx, yy) + .5) - .7;
+			map_set(heightmap, xx, yy, val);
+
+
 #endif
 			if( value(heightmap, xx, yy) < BASE_SEA_LEVEL){
 				map_set(water, xx, yy, BASE_SEA_LEVEL - value(heightmap, xx, yy) );
@@ -270,6 +275,7 @@ int main(void) {
 		}
 //		printf("\n");
 	}
+
 //    // loop until everything is flattened out.
 //	int loopcount = 0;
 //	for(;;){
@@ -295,14 +301,14 @@ int main(void) {
 		// p = rt
 		// r = 287.1
 		// 287 *
-//		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
-		pressure->values[ii] = 1000.0;
+		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
+//		pressure->values[ii] = 1000.0;
 
 		ew_velocity->values[ii] = 0.0;
 		ns_velocity->values[ii] = 0.0;
 	}
 
-	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
+//	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
 //	map_set(ew_velocity, heightmap->width/2, -10, -1000);
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
@@ -352,7 +358,7 @@ int main(void) {
     int display = 1;
 
     // calculate boolean
-    int play = 1;
+    int play = 0;
 
 
     // mouse location
@@ -529,12 +535,43 @@ int main(void) {
 								play = !play;
 
 						break;
+						case(SDLK_n):
+						// zero the tracer and set a grid in the tracer.
+						for( int yy = 0; yy < heightmap->height; yy++){
+							for( int xx = 0; xx < heightmap->width; xx++){
+								if( xx % 2 != yy % 2){
+									map_set(tracer, xx, yy, 1.0);
+								}
+								else{
+									map_set(tracer, xx, yy, 0.0);
+
+								}
+
+							}
+						}
+						break;
+						case(SDLK_m):
+
+						// zero the tracer and set a random point to 1.
+						for( int yy = 0; yy < heightmap->height; yy++){
+							for( int xx = 0; xx < heightmap->width; xx++){
+								map_set(tracer, xx, yy, 0.0);
+
+							}
+						}
+						map_set(tracer, next(&my_rand) % heightmap->height, next(&my_rand) % heightmap->width, 1.0);
+
+						break;
+
 
                 	}
                 	break;
                 	case SDL_MOUSEMOTION:
                 		mouse_x = event.motion.x;
                 		mouse_y = event.motion.y;
+                		break;
+                	case SDL_MOUSEBUTTONDOWN:
+                		map_set(tracer, mouse_x, mouse_y, 1.0);
                 		break;
 
             }
@@ -739,6 +776,7 @@ int main(void) {
         	calc_real_height(heightmap, water, real_height, BASE_SEA_LEVEL);
 
         	geopotential(real_height, pressure, ew_velocity_old, ns_velocity_old, timestep);
+//        	temperature_pressure(temp_map, pressure, ew_velocity_old, ns_velocity_old, timestep);
 
         	temp = ew_velocity;
         	ew_velocity = ew_velocity_old;

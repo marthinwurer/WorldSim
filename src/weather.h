@@ -36,4 +36,6 @@ void calc_real_height(map2d * heightmap, map2d * water,  map2d * real_height, fl
 
 void geopotential(map2d * heightmap, map2d * pressure,  map2d * ew_velocity, map2d * ns_velocity, float timestep);
 
+void temperature_pressure(map2d * temperature, map2d * pressure,  map2d * ew_velocity, map2d * ns_velocity, float timestep);
+
 #endif /* WEATHER_H_ */

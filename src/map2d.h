@@ -32,4 +32,6 @@ double map2d_total( map2d * ds );
 
 double map2d_min( map2d * ds );
 
+void normalize(map2d * ds);
+
 #endif /* SRC_MAP2D_H_ */

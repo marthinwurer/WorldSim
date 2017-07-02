@@ -713,12 +713,57 @@ void temperature_pressure(map2d * temperature, map2d * pressure,  map2d * ew_vel
 		for( int xx = 0; xx < temperature->width; ++xx){
 			int index = m_index(temperature, xx, yy);
 
-			change->values[index] = pressure->values[index] * GAS_CONSTANT_DRY_AIR * temperature->values[index];
+			change->values[index] = pressure->values[index] * GAS_CONSTANT_DRY_AIR * temperature->values[index]
+															* pow(pressure->values[index], .286);
 		}
 	}
 
 	// calculate the change in velocity due to this.
+	// (SPA(I,J,L)+SPA(I,J-1,L))*(P(I,J)-P(I,J-1)))*DXV(J)
 
+	for( int yy = 0; yy < temperature->height - 1; ++yy){
+		for( int xx = 0; xx < temperature->width; ++xx){
+			int index = m_index(temperature, xx, yy);
+			int south = m_index(temperature, xx, yy + 1);
+			int east = m_index(temperature, xx + 1, yy);
+
+			float ew_val =  .5 * (change->values[index] + change->values[east]);
+
+			ew_val = (ew_val + .5 * (pressure->values[east] + pressure->values[index])) * timestep * .5;
+
+
+			ew_velocity->values[index] += ew_val;
+
+			float ns_val =  .5 * (change->values[index] + change->values[south]);
+
+			ns_val = (ns_val + .5 * (pressure->values[south] + pressure->values[index])) * timestep * .5;
+
+
+			ns_velocity->values[index] += ns_val;
+
+
+
+		}
+	}
+
+//	for( int xx = 0; xx < temperature->width; ++xx){
+//
+//		int yy = temperature->height - 1;
+//
+//		int index = m_index(temperature, xx, yy);
+//		int south = m_index(temperature, xx, yy + 1);
+//		int east = m_index(temperature, xx + 1, yy);
+//
+//		float ew_val =  .5 * (change->values[index] + change->values[east]);
+//
+//		ew_val = (ew_val + .5 * (pressure->values[index] - pressure->values[east])) * timestep * .5;
+//
+//
+//		ew_velocity->values[index] += ew_val;
+//	}
+
+
+	map2d_delete(change);
 
 
 }

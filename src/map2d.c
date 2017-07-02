@@ -95,3 +95,38 @@ double map2d_min( map2d * ds )
 	return min_val;
 
 }
+
+
+
+/**
+ * This function normalizes all values in the map to be within 0 and 1. modifies the given array.
+ */
+void normalize(map2d * ds){
+	// find the max and min values
+
+    float max = ds->values[0];
+    float min = ds->values[0];
+
+    for( int yy = 0; yy < ds->height; yy++ ){
+        for( int xx = 0; xx < ds->width; xx++ ){
+        	int index = m_index(ds, xx, yy);
+        	float val = ds->values[index];
+        	if( val > max){
+        		max = val;
+        	}
+        	if( val < min){
+        		min = val;
+        	}
+        }
+    }
+    // normalize the array
+    float difference = max - min;
+    for( int yy = 0; yy < ds->height; yy++ ){
+        for( int xx = 0; xx < ds->width; xx++ ){
+        	int index = m_index(ds, xx, yy);
+        	ds->values[index] = (ds->values[index] - min) / difference;
+
+        }
+    }
+
+}

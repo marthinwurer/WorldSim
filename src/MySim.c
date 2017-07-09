@@ -273,7 +273,6 @@ int main(void) {
 				map_set(water, xx, yy, BASE_SEA_LEVEL - value(heightmap, xx, yy) );
 			}
 		}
-//		printf("\n");
 	}
 
 //    // loop until everything is flattened out.

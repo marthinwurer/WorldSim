@@ -373,7 +373,7 @@ void my_air_velocities(map2d * pressure, map2d * old_ew, map2d * new_ew, map2d *
 			float ns_val = old_ns->values[index];
 
 			// apply friction
-			ew_val = signof(ew_val) * max( 0.0, fabs(ew_val) *friction);
+			ew_val = signof(ew_val) * max( 0.0, fabs(ew_val) * friction);
 			ns_val = signof(ns_val) * max( 0.0, fabs(ns_val) * friction);
 
 			new_ew->values[index] = ew_val + pressure->values[index] - pressure->values[east];

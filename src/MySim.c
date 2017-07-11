@@ -68,6 +68,16 @@ float min_water = 0.00001; // the minimum amount of water where the tile will be
 
 const float BASE_SEA_LEVEL = 0.5;
 
+// the time in seconds between each timestep
+float timestep = 1.0f;
+
+// the square edge length in meters (assume that everything is a perfect square/cube)
+float squarelen = 1.0f;
+
+// acceleration due to gravity
+float gravity = 9.8f;
+
+
 rng_state_t my_rand;
 threadpool_t * thread_pool;
 
@@ -210,6 +220,8 @@ int main(void) {
     map2d * gradient = sobel_gradient(heightmap, &maxval); // the slope of the current heightmap
 	map2d * boundaries = DSCreate(FRACTAL_POWER, &my_rand); // plate boundaries
 	map2d * real_height = new_map2d(heightmap->width, heightmap->height);
+	map2d * suspended_material = new_map2d(heightmap->width, heightmap->height);
+
 
 	map2d * water = new_map2d(heightmap->width, heightmap->height); // the water map
     map2d * oldwatermap = new_map2d(heightmap->width, heightmap->height);

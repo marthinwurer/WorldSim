@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <math.h>
 #include "xoroshiro128plus.h"
 #include "DiamondSquare.h"
 #include "map2d.h"
@@ -25,6 +26,12 @@ const float MOMEMTUM_CONSTANT = 0.95;
 
 extern const int NUM_THREADS;
 extern threadpool_t * thread_pool;
+extern float timestep;
+extern float squarelen;
+extern float gravity;
+
+const float turb_coef = 0.005f; // turbulent flat plate parallel to the flow (from wikipedia)
+const float kinematic_viscostity_water_20c = 1.004f; // m^2/s. kinematic viscosity of water at 20C.
 
 // a struct to be passed into the threadpool
 struct poolpram_s{
@@ -46,7 +53,7 @@ struct poolpram_s{
  *
  * modifies the indexes array
  */
-void calculate_indexes(int * indexes, int xx, int yy, map2d * index_into ){
+void calculate_indexes8(int * indexes, int xx, int yy, map2d * index_into ){
 	indexes[0] = m_index(index_into, xx - 1, yy - 1);
 	indexes[1] = m_index(index_into, xx, yy - 1);
 	indexes[2] = m_index(index_into, xx + 1, yy - 1);
@@ -80,7 +87,7 @@ void erode_thread( void * arg){
 			int currindex = m_index(param->input, xx, yy);
 			float current = value(param->input, xx, yy);
 			int indexes[8];
-			calculate_indexes(indexes, xx, yy, param->water);
+			calculate_indexes8(indexes, xx, yy, param->water);
 
 //			indexes[0] = m_index(param->input, xx - 1, yy - 1);
 //			indexes[1] = m_index(param->input, xx, yy - 1);
@@ -311,12 +318,13 @@ void water_thread( void * arg){
 //			indexes[1] = m_index(param->water, xx + 1, yy);
 //			indexes[2] = m_index(param->water, xx, yy + 1);
 //			indexes[3] = m_index(param->water, xx - 1, yy);
-			calculate_indexes(indexes, xx, yy, param->water);
+			calculate_indexes8(indexes, xx, yy, param->water);
 
+			// make arrays so that we can do this in a loop.
 			float differences[WATER_INDEXES];
 			float m_dir[WATER_INDEXES];  // the momentum in that direction
 			float proportions[WATER_INDEXES];
-			float maxdiff = 0;
+			float maxdiff = 0; // the maximum difference with a neighboring tile
 			float count = 0;
 
 			float totalmomentum = 0;
@@ -332,14 +340,9 @@ void water_thread( void * arg){
 				if(differences[ii] > maxdiff){
 					maxdiff = differences[ii];
 				}
-				if(differences[ii] > 0){
-					// ternary to save code
-					proportions[ii] = (differences[ii]) ;
-					count += proportions[ii];
-				}
-				else{
-					proportions[ii] = 0;
-				}
+
+				proportions[ii] = max(0, differences[ii]) ;
+				count += proportions[ii];
 
 				// apply the acceleration to the velocity/momentum
 				m_dir[ii] += differences[ii] * .1;
@@ -559,7 +562,7 @@ map2d * hydraulic_erosion(map2d * heightmap, map2d ** velocities){
 			int currindex = m_index(heightmap, xx, yy);
 			int indexes[8];
 			float values[8];
-			calculate_indexes(indexes, xx, yy, heightmap);
+			calculate_indexes8(indexes, xx, yy, heightmap);
 
 			// count the total amount being moved
 			float total = 0;
@@ -629,7 +632,97 @@ map2d * hydraulic_erosion(map2d * heightmap, map2d ** velocities){
 
 }
 
+void calculate_indexes4(int * indexes, int xx, int yy, map2d * index_into ){
+	indexes[0] = m_index(index_into, xx, yy - 1);
+	indexes[1] = m_index(index_into, xx + 1, yy);
+	indexes[2] = m_index(index_into, xx, yy + 1);
+	indexes[3] = m_index(index_into, xx - 1, yy);
+}
 
+
+/**
+ * This function does water movement as in the paper
+ * "Interactive Terrain Modeling Using Hydraulic Erosion" by Stavo et al. 2008
+ *
+ * velocities are in m/s
+ *
+ * This only works in 4 directions.
+ */
+void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, map2d ** oldvelocities, map2d ** newvelocities){
+
+	// base directions for the loop in this function
+	//  0
+	// 3x1
+	//  2
+
+	// water is 1 g/cm^3
+	float density = 1.0f;
+
+
+
+
+	for( int yy = 0; yy < heightmap->height; yy ++){
+		for( int xx = 0; xx < heightmap->width; xx++){
+			// get the current index
+			int index = m_index(heightmap, xx, yy);
+
+			// find the indexes of the neighbors
+			int indexes[4];
+			calculate_indexes4(&indexes, xx, yy, water);
+
+			// find the current amounts of water and geopotential height
+			float currwater = water->values[index];
+			float currheight = heightmap->values[index];
+			float geo = currwater + currheight; // the geopotential height
+
+			float differences[4]; // the pressure difference between the current tile and the neighbor
+			float flow[4]; // the proportion of the water that is moving to that neighbor
+			float totaltobemoved = 0; // the total amount of water to be moved
+
+			// loop over each direction
+			for(int ii = 0; ii < 4; ii++){
+				// find the pressure difference
+				float n_water = water->values[indexes[ii]];
+				float n_height = heightmap->values[indexes[ii]];
+				float n_geo = n_water + n_height;
+				differences[ii] = gravity * (geo - n_geo); // formula in paper has the density here too, but the acceleration formula cancels it out
+
+				// if the differences are zero, skip the calculations and have the flow be zero.
+				if( differences[ii] > 0.0){
+					float acceleration = differences[ii] / squarelen;
+					float velocity = oldvelocities[ii]->values[index] + acceleration * timestep;
+					// now find the force of friction in the pipe.
+					// use skin friction drag (https://en.wikipedia.org/wiki/Skin_friction_drag)
+					// Assume pipe is half full, so hydraulic radius is 0.25m. Also assume square pipe.
+					float re = velocity * 0.25 / kinematic_viscostity_water_20c;
+
+					// use the reynold's number to find the coefficient of friction
+					// use the Prandtl approximation
+					float coef = (float)(0.074 * pow( re, -0.2));
+
+					// change the velocity
+					velocity -= velocity * velocity * squarelen * squarelen * coef;
+
+
+
+					// find the final flow.
+					flow[ii] = velocity * squarelen * squarelen;
+				}
+				else{
+					flow[ii] = 0.0;
+				}
+			}
+
+			// now that we have figured out the flow in each direction, make sure that we aren't taking too much out and then write to the new velocities
+
+
+		}
+	}
+
+
+
+
+}
 
 
 

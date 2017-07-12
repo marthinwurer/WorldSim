@@ -836,6 +836,7 @@ int main(void) {
         	stavo_water_movement(heightmap, water, oldwatermap, velocities, new_velocities, pipes);
         	swapmap(&water, &oldwatermap);
         	swapmap2(&velocities, &new_velocities);
+//        	check_nan(water, __FILE__, __LINE__);
 
 
 

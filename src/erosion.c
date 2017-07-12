@@ -671,7 +671,7 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 
 			// find the indexes of the neighbors
 			int indexes[4];
-			calculate_indexes4(&indexes, xx, yy, water);
+			calculate_indexes4(indexes, xx, yy, water);
 
 			// find the current amounts of water and geopotential height
 			float currwater = water->values[index];
@@ -718,16 +718,16 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 
 					// find the final flow.
 					flow[ii] = velocity[ii] * squarelen * squarelen;
-					totaltobemoved += flow[ii];
 				}
 				else{
 					flow[ii] = 0.0;
 				}
+				totaltobemoved += flow[ii];
 			}
 
 			// now that we have figured out the flow in each direction, make sure that we aren't taking too much out and then write to the new velocities
 			float proportion = 1.0f;
-			if( totaltobemoved > volume){ // square it to find the total volume of water in this tile.
+			if(totaltobemoved > 0.0 && totaltobemoved > volume){
 				proportion = volume / totaltobemoved;
 			}
 			// write to the pipes and to the velocities
@@ -738,7 +738,8 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 			}
 
 			// write to the next water level
-			nextwater->values[index] = min(volume, totaltobemoved) / area;
+
+			nextwater->values[index] = currwater - min(volume, totaltobemoved) / area;
 
 			// do the next tile
 		}

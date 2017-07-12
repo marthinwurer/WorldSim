@@ -749,7 +749,7 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 		for( int xx = 0; xx < heightmap->width; xx++){
 			int index = m_index(heightmap, xx, yy);
 			for(int ii = 0; ii < 4; ii++){
-				nextwater->values[index] += pipes[ii]->values[index];
+				nextwater->values[index] += pipes[ii]->values[index] / area;
 			}
 		}
 	}

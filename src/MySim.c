@@ -382,6 +382,7 @@ int main(void) {
 
     // calculate boolean
     int play = 0;
+    int step = 0;
 
 
     // mouse location
@@ -558,6 +559,10 @@ int main(void) {
 						break;
 						case(SDLK_p):
 								play = !play;
+
+						break;
+						case(SDLK_s):
+								step = !step;
 
 						break;
 						case(SDLK_n):
@@ -766,7 +771,8 @@ int main(void) {
 
 #endif
         // let me pause execution
-        if( play){
+        if( play || step){
+        	step = 0; // let me step through frames
 
         	map2d * temp;
         	map2d ** ttemp;

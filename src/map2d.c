@@ -130,3 +130,59 @@ void normalize(map2d * ds){
     }
 
 }
+
+
+map2d ** make_array(int size, int x, int y){
+
+	map2d** toreturn = calloc(size, sizeof(map2d *));
+
+	for( int ii = 0; ii < size; ii++){
+		toreturn[ii] = new_map2d(x, y);
+	}
+	return toreturn;
+}
+
+void swapmap(map2d ** a, map2d ** b){
+	map2d * temp = *a;
+	*a = *b;
+	*b = temp;
+}
+void swapmap2(map2d *** a, map2d *** b){
+	map2d ** temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

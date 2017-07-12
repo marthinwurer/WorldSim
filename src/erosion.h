@@ -16,5 +16,7 @@ map2d * water_movement(map2d * water, map2d * height, map2d ** momentums, map2d 
 
 map2d * hydraulic_erosion(map2d * input, map2d ** velocities);
 
+void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, map2d ** oldvelocities, map2d ** newvelocities, map2d ** pipes);
+
 
 #endif /* SRC_EROSION_H_ */

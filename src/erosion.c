@@ -646,9 +646,11 @@ void calculate_indexes4(int * indexes, int xx, int yy, map2d * index_into ){
  *
  * velocities are in m/s
  *
+ * pipe xy indexes are for the water coming into the tile.
+ *
  * This only works in 4 directions.
  */
-void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, map2d ** oldvelocities, map2d ** newvelocities){
+void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, map2d ** oldvelocities, map2d ** newvelocities, map2d ** pipes){
 
 	// base directions for the loop in this function
 	//  0
@@ -658,6 +660,7 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 	// water is 1 g/cm^3
 	float density = 1.0f;
 
+	float area = squarelen * squarelen;
 
 
 
@@ -672,10 +675,12 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 
 			// find the current amounts of water and geopotential height
 			float currwater = water->values[index];
+			float volume = currwater * area;
 			float currheight = heightmap->values[index];
 			float geo = currwater + currheight; // the geopotential height
 
 			float differences[4]; // the pressure difference between the current tile and the neighbor
+			float velocity[4];
 			float flow[4]; // the proportion of the water that is moving to that neighbor
 			float totaltobemoved = 0; // the total amount of water to be moved
 
@@ -687,26 +692,33 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 				float n_geo = n_water + n_height;
 				differences[ii] = gravity * (geo - n_geo); // formula in paper has the density here too, but the acceleration formula cancels it out
 
-				// if the differences are zero, skip the calculations and have the flow be zero.
+				// find the force of friction in the pipe.
+				// use skin friction drag (https://en.wikipedia.org/wiki/Skin_friction_drag)
+				// Assume pipe is half full, so hydraulic radius is 0.25m. Also assume square pipe.
+				velocity[ii] = oldvelocities[ii]->values[index];
+				float re = velocity[ii] * 0.25 / kinematic_viscostity_water_20c;
+
+				// use the reynold's number to find the coefficient of friction
+				// use the Prandtl approximation
+				float coef = (float)(0.074 * pow( re, -0.2));
+
+				// change the velocity
+				velocity[ii] -= velocity[ii] * velocity[ii] * squarelen * squarelen * coef;
+
+				// Make sure that the change due to friction does not make the velocity less than zero
+				velocity[ii] = max( 0, velocity[ii]);
+
+
+				// if the differences are zero, skip the acceleration calculations and have the flow be zero.
 				if( differences[ii] > 0.0){
+					// once friction has been applied, find the acceleration
 					float acceleration = differences[ii] / squarelen;
-					float velocity = oldvelocities[ii]->values[index] + acceleration * timestep;
-					// now find the force of friction in the pipe.
-					// use skin friction drag (https://en.wikipedia.org/wiki/Skin_friction_drag)
-					// Assume pipe is half full, so hydraulic radius is 0.25m. Also assume square pipe.
-					float re = velocity * 0.25 / kinematic_viscostity_water_20c;
 
-					// use the reynold's number to find the coefficient of friction
-					// use the Prandtl approximation
-					float coef = (float)(0.074 * pow( re, -0.2));
-
-					// change the velocity
-					velocity -= velocity * velocity * squarelen * squarelen * coef;
-
-
+					velocity[ii] += acceleration * timestep;
 
 					// find the final flow.
-					flow[ii] = velocity * squarelen * squarelen;
+					flow[ii] = velocity[ii] * squarelen * squarelen;
+					totaltobemoved += flow[ii];
 				}
 				else{
 					flow[ii] = 0.0;
@@ -714,11 +726,33 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 			}
 
 			// now that we have figured out the flow in each direction, make sure that we aren't taking too much out and then write to the new velocities
+			float proportion = 1.0f;
+			if( totaltobemoved > volume){ // square it to find the total volume of water in this tile.
+				proportion = volume / totaltobemoved;
+			}
+			// write to the pipes and to the velocities
+			for(int ii = 0; ii < 4; ii++){
+				// make sure to move it into the pipe for the correct tile.
+				pipes[ii]->values[indexes[ii]] = flow[ii] * proportion;
+				newvelocities[ii]->values[index] = velocity[ii] * proportion;
+			}
 
+			// write to the next water level
+			nextwater->values[index] = min(volume, totaltobemoved) / area;
 
+			// do the next tile
 		}
 	}
 
+	// once all tiles are done, do the map-reduce
+	for( int yy = 0; yy < heightmap->height; yy ++){
+		for( int xx = 0; xx < heightmap->width; xx++){
+			int index = m_index(heightmap, xx, yy);
+			for(int ii = 0; ii < 4; ii++){
+				nextwater->values[index] += pipes[ii]->values[index];
+			}
+		}
+	}
 
 
 

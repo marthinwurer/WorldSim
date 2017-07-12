@@ -56,12 +56,16 @@
 
 //#define DO_EROSION
 #define DO_THERMAL_EROSION
+#define DO_WATER
+#define DO_STAVO_WATER
+
+//#define DO_WEATHER
 
 
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 8; // the power of two that represents the current map size
+const int FRACTAL_POWER = 10; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.
@@ -238,6 +242,16 @@ int main(void) {
 	map2d * ew_velocity_old = new_map2d(heightmap->width, heightmap->height);
 	map2d * tracer = new_map2d(heightmap->width, heightmap->height);
 
+#ifdef DO_STAVO_WATER
+	map2d ** velocities = make_array(4, heightmap->width, heightmap->height);
+	map2d ** new_velocities = make_array(4, heightmap->width, heightmap->height);
+	map2d ** pipes = make_array(4, heightmap->width, heightmap->height);
+#else
+    map2d ** velocities = water_pipes(heightmap->width, heightmap->width);
+    map2d ** momentums = water_pipes(heightmap->width, heightmap->width);
+
+#endif
+
 
 
 	int tiles = heightmap->width * heightmap->height;
@@ -348,8 +362,6 @@ int main(void) {
 	float watermax = 0;
 
 
-    map2d ** velocities = water_pipes(heightmap->width, heightmap->width);
-    map2d ** momentums = water_pipes(heightmap->width, heightmap->width);
 
 
     int tectonics = 0;
@@ -511,10 +523,12 @@ int main(void) {
 								}
 							}
 
+#ifdef DO_STAVO_WATER
+#else
 							// wipe the old momentums and velocities.
 							velocities = water_pipes(heightmap->width, heightmap->width);
 							momentums = water_pipes(heightmap->width, heightmap->width);
-
+#endif
 
 							break;
 
@@ -658,9 +672,15 @@ int main(void) {
 
         			// sum the water velocity
         			float vel = 0;
+#ifdef DO_STAVO_WATER
+        			for( int ii = 0; ii < 4; ii++){
+        				vel += velocities[ii]->values[xx + yy * heightmap->height];
+        			}
+#else
         			for( int ii = 0; ii < 8; ii++){
         				vel += velocities[ii]->values[xx + yy * heightmap->height];
         			}
+#endif
         			watervelocity->values[xx + yy * heightmap->height] = vel;
 
         			watermax = max(vel, watermax);
@@ -749,6 +769,7 @@ int main(void) {
         if( play){
 
         	map2d * temp;
+        	map2d ** ttemp;
 
 #ifdef DO_EROSION
 #ifdef DO_THERMAL_EROSION
@@ -772,7 +793,7 @@ int main(void) {
 
 
 
-
+#ifdef DO_WEATHER
         	// calculate a weather time step
         	float timestep = 0.01;
         	my_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
@@ -790,16 +811,32 @@ int main(void) {
 //        	temperature_pressure(temp_map, pressure, ew_velocity_old, ns_velocity_old, timestep);
 
         	temp = ew_velocity;
+            map2d ** velocities = water_pipes(
         	ew_velocity = ew_velocity_old;
         	ew_velocity_old = temp;
         	temp = ns_velocity;
         	ns_velocity = ns_velocity_old;
         	ns_velocity_old = temp;
+#endif
 
 
-
+#ifdef DO_WATER
 
         	rainfall(water, evaporated_water, vapor);
+
+
+#ifdef DO_STAVO_WATER
+
+        	stavo_water_movement(heightmap, water, oldwatermap, velocities, new_velocities, pipes);
+        	swapmap(&water, &oldwatermap);
+        	swapmap2(&velocities, &new_velocities);
+
+
+
+
+
+#else
+
 
         	temp = water_movement(water, heightmap, momentums, velocities);
         	map2d_delete(oldwatermap);
@@ -815,9 +852,10 @@ int main(void) {
         	check_nan(heightmap, __FILE__, __LINE__);
 
 #endif
+
+#endif
         	maxwater = evaporate(water, ground_water, &vapor, evaporated_water, temp_map);
-
-
+#endif
 
 
 

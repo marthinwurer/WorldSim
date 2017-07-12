@@ -34,4 +34,10 @@ double map2d_min( map2d * ds );
 
 void normalize(map2d * ds);
 
+map2d ** make_array(int size, int x, int y);
+
+void swapmap(map2d ** a, map2d ** b);
+void swapmap2(map2d *** a, map2d *** b);
+
+
 #endif /* SRC_MAP2D_H_ */

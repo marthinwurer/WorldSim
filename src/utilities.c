@@ -27,7 +27,17 @@ int check_nan(map2d * data, const char * file, int line){
 			}
 		}
 	}
+	return 0;
 }
+
+float cn(float data, const char * file, int line){
+	if( isnan(data)){
+		printf("NaN at %s:%d\n", file, line);
+		exit(123);
+	}
+	return data;
+}
+
 
 
 int signof(float val){

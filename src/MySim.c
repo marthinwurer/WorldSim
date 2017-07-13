@@ -73,7 +73,7 @@ float min_water = 0.00001; // the minimum amount of water where the tile will be
 const float BASE_SEA_LEVEL = 0.5;
 
 // the time in seconds between each timestep
-float timestep = 1.0f;
+float timestep = 0.01f;
 
 // the square edge length in meters (assume that everything is a perfect square/cube)
 float squarelen = 1.0f;
@@ -381,7 +381,7 @@ int main(void) {
     int display = 1;
 
     // calculate boolean
-    int play = 0;
+    int play = 1;
     int step = 0;
 
 

@@ -692,23 +692,29 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 				float n_geo = n_water + n_height;
 				differences[ii] = gravity * (geo - n_geo); // formula in paper has the density here too, but the acceleration formula cancels it out
 
+				cn(differences[ii], __FILE__, __LINE__);
 				// find the force of friction in the pipe.
 				// use skin friction drag (https://en.wikipedia.org/wiki/Skin_friction_drag)
 				// Assume pipe is half full, so hydraulic radius is 0.25m. Also assume square pipe.
 				velocity[ii] = oldvelocities[ii]->values[index];
 				float re = velocity[ii] * 0.25 / kinematic_viscostity_water_20c;
 
+				cn(re, __FILE__, __LINE__);
 				// use the reynold's number to find the coefficient of friction
 				// use the Prandtl approximation
-				float coef = (float)(0.074 * pow( re, -0.2));
+				float coef = re == 0? 0.0f: (float)(0.074 * pow( re, -0.2));
+				cn(coef, __FILE__, __LINE__);
 
 				// change the velocity
+				cn(velocity[ii], __FILE__, __LINE__);
 				velocity[ii] -= velocity[ii] * velocity[ii] * squarelen * squarelen * coef;
+				cn(velocity[ii], __FILE__, __LINE__);
 
 				// Make sure that the change due to friction does not make the velocity less than zero
 				velocity[ii] = max( 0, velocity[ii]);
 
 
+				cn(velocity[ii], __FILE__, __LINE__);
 				// if the differences are zero, skip the acceleration calculations and have the flow be zero.
 				if( differences[ii] > 0.0){
 					// once friction has been applied, find the acceleration

@@ -65,10 +65,11 @@
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 10; // the power of two that represents the current map size
+const int FRACTAL_POWER = 9; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.
+float height_multiplier = 128.0f; // the amount the fractal height is multiplied by to find the height.
 
 const float BASE_SEA_LEVEL = 0.5;
 
@@ -261,7 +262,8 @@ int main(void) {
 	// directly assign those points that are less than 0.5
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
-#if 0
+
+#if 1
 			/* parabolic */
 			float x = xx;
 			float y = yy;
@@ -298,6 +300,12 @@ int main(void) {
 			if( value(heightmap, xx, yy) < BASE_SEA_LEVEL){
 				map_set(water, xx, yy, BASE_SEA_LEVEL - value(heightmap, xx, yy) );
 			}
+
+			int index = m_index(heightmap, xx, yy);
+			water->values[index] *= height_multiplier;
+			heightmap->values[index] *= height_multiplier;
+
+
 		}
 	}
 
@@ -381,8 +389,8 @@ int main(void) {
     int display = 1;
 
     // calculate boolean
-    int play = 1;
-    int step = 0;
+    int play = 0;
+    int step = 1;
 
 
     // mouse location
@@ -630,7 +638,7 @@ int main(void) {
 								(value(water, xx, yy)/2 + .25) / 0.5);
         			}
 //        			else{
-        				color = shade( color, value(gradient, xx, yy), 0.008);
+        				color = shade( color, value(gradient, xx, yy)/height_multiplier, 0.008);
 //        			}
 
         			//SDL_Color color = greyscale_gradient( maxval, gradient->values[xx + yy * fractal->height]);
@@ -652,7 +660,7 @@ int main(void) {
     			height = (value(water, xx, yy) + value(heightmap, xx, yy)) * SCREEN_HEIGHT / 4;
     			color = water_color(0.5f, 0);
     			drawRect(gRenderer, xx,
-    					SCREEN_HEIGHT - height,
+    					SCREEN_HEIGHT - height/height_multiplier,
 						color.r, color.g, color.b, color.a);
 
     			// draw the land
@@ -660,7 +668,7 @@ int main(void) {
     			height = heightmap->values[xx + yy * heightmap->height] * SCREEN_HEIGHT / 4;
 
 
-    			drawRect(gRenderer, xx, SCREEN_HEIGHT - height,
+    			drawRect(gRenderer, xx, SCREEN_HEIGHT - height/height_multiplier,
     					color.r, color.g, color.b, color.a);
     		}
         	// display a small mark where the cross section view is.
@@ -731,10 +739,31 @@ int main(void) {
 
         }
         else if (display_mode == 5){
+        	map2d * water_divergance = new_map2d(heightmap->width, heightmap->height);
 
-        	map2d * disp_map = pressure;
+        	for( int yy = 0; yy < heightmap->height; yy++){
+        		for( int xx = 0; xx < heightmap->width; xx++){
 
-        	check_nan(convergence, __FILE__, __LINE__);
+        			// sum the water velocity
+        			float vel = 0;
+#ifdef DO_STAVO_WATER
+        			for( int ii = 0; ii < 4; ii++){
+        				vel += velocities[ii]->values[xx + yy * heightmap->height];
+        			}
+#else
+        			for( int ii = 0; ii < 8; ii++){
+        				vel += velocities[ii]->values[xx + yy * heightmap->height];
+        			}
+#endif
+        			water_divergance->values[xx + yy * heightmap->height] = vel;
+
+        			watermax = max(vel, watermax);
+        		}
+        	}
+
+        	map2d * disp_map = water_divergance;
+
+//        	check_nan(convergence, __FILE__, __LINE__);
 
         	render_map(gRenderer, disp_map, 0, 0);
         	render_map(gRenderer, convergence, heightmap->width, 0);

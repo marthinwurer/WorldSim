@@ -9,6 +9,8 @@
 
 #include <SDL2/SDL.h>
 
+extern float height_multiplier;
+
 const SDL_Color black = {0, 0, 0, 255};
 const SDL_Color blue = {0, 0, 255, 255};
 const SDL_Color green = {0, 255, 0, 255};
@@ -40,6 +42,8 @@ SDL_Color alpine_gradient(float sealevel, float height){
 //        return interpolate_colors(black, blue, height / sealevel);
 //    }
 //    else
+	sealevel /= height_multiplier;
+	height /= height_multiplier;
     	if( height < 2.0/3.0)
     {
         return interpolate_colors(green, dgreen, (height)/( 2.0/3.0));

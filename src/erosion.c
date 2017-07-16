@@ -638,6 +638,12 @@ void calculate_indexes4(int * indexes, int xx, int yy, map2d * index_into ){
 	indexes[2] = m_index(index_into, xx, yy + 1);
 	indexes[3] = m_index(index_into, xx - 1, yy);
 }
+void calculate_indexes4rev(int * indexes, int xx, int yy, map2d * index_into ){
+	indexes[0] = m_index(index_into, xx, yy + 1);
+	indexes[1] = m_index(index_into, xx - 1, yy);
+	indexes[2] = m_index(index_into, xx, yy - 1);
+	indexes[3] = m_index(index_into, xx + 1, yy);
+}
 
 
 /**
@@ -742,7 +748,7 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 			// write to the pipes and to the velocities
 			for(int ii = 0; ii < 4; ii++){
 				// make sure to move it into the pipe for the correct tile.
-				pipes[ii]->values[indexes[ii]] = flow[ii] * proportion;
+				pipes[ii]->values[index] = flow[ii] * proportion;
 				newvelocities[ii]->values[index] = velocity[ii] * proportion;
 			}
 
@@ -758,8 +764,11 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 	for( int yy = 0; yy < heightmap->height; yy ++){
 		for( int xx = 0; xx < heightmap->width; xx++){
 			int index = m_index(heightmap, xx, yy);
+			int indexes[4];
+			calculate_indexes4rev(indexes, xx, yy, water);
+
 			for(int ii = 0; ii < 4; ii++){
-				nextwater->values[index] += pipes[ii]->values[index] / area;
+				nextwater->values[index] += pipes[ii]->values[indexes[ii]] / area;
 			}
 		}
 	}

@@ -68,7 +68,7 @@ const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 const int FRACTAL_POWER = 10; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
-float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.
+float min_water = 0.1; // the minimum amount of water where the tile will be seen as having water in it.
 float height_multiplier = 8192.0f; // the amount the fractal height is multiplied by to find the height.
 
 const float BASE_SEA_LEVEL = 0.5;
@@ -231,9 +231,9 @@ int main(void) {
 
 
 	map2d * water = new_map2d(heightmap->width, heightmap->height); // the water map
-    map2d * oldwatermap = new_map2d(heightmap->width, heightmap->height);
-    map2d * ground_water = new_map2d(heightmap->width, heightmap->height);
-    map2d * aquifer_water = new_map2d(heightmap->width, heightmap->height);
+    map2d * oldwatermap = new_map2d(heightmap->width, heightmap->height); // water map from last step
+    map2d * ground_water = new_map2d(heightmap->width, heightmap->height); // water in the top level of dirt
+    map2d * aquifer_water = new_map2d(heightmap->width, heightmap->height); // water in the auqifer
 	map2d * evaporated_water = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
 	map2d * water_gradient = sobel_gradient(heightmap, &maxval); // water gradient (show waves
 

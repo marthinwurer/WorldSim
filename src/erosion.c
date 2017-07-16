@@ -720,6 +720,8 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 
 				velocity[ii] += acceleration * timestep;
 
+//				velocity[ii] = MIN(velocity[ii], 25);
+
 				// find the final flow.
 				// if the velocity is less than zero, have the flow and velocity be zero.
 				if( velocity[ii] > 0.0){

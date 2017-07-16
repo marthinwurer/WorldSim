@@ -65,19 +65,21 @@
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 9; // the power of two that represents the current map size
+const int FRACTAL_POWER = 10; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.00001; // the minimum amount of water where the tile will be seen as having water in it.
-float height_multiplier = 128.0f; // the amount the fractal height is multiplied by to find the height.
+float height_multiplier = 8192.0f; // the amount the fractal height is multiplied by to find the height.
 
 const float BASE_SEA_LEVEL = 0.5;
 
 // the time in seconds between each timestep
-float timestep = 0.01f;
+float timestep = 900.0f;
 
 // the square edge length in meters (assume that everything is a perfect square/cube)
-float squarelen = 1.0f;
+//float squarelen = 1156250.0f;
+float squarelen = 39063.0f;
+
 
 // acceleration due to gravity
 float gravity = 9.8f;
@@ -263,7 +265,7 @@ int main(void) {
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
 
-#if 1
+#if 0
 			/* parabolic */
 			float x = xx;
 			float y = yy;
@@ -308,6 +310,7 @@ int main(void) {
 
 		}
 	}
+//	map_set(water, 300, 300, 300);
 
 //    // loop until everything is flattened out.
 //	int loopcount = 0;
@@ -328,6 +331,7 @@ int main(void) {
 
 	// set up weather things
 	map2d * temp_map = temp_map_from_heightmap(heightmap, BASE_SEA_LEVEL, 1.0);
+#ifdef DO_WEATHER
 
 	// set up the pressure  and velocity maps
 	for( int ii = 0; ii < tiles; ii++){
@@ -359,12 +363,12 @@ int main(void) {
 	calc_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
 
 
+#endif
 
 	// get the total water - to be used to unbreak conservation of mass
     double totalwater = 0.0f;
 
     totalwater = map2d_total(water);
-//	map_set(fractal, 300, 300, 0.0);
     double vapor; // the amount of water to precipitate.
     float maxwater = evaporate(water, ground_water, &vapor, evaporated_water, temp_map);
 	float watermax = 0;
@@ -635,7 +639,7 @@ int main(void) {
         				color = interpolate_colors(
         						color,
 								water_color(0.5f, value(water, xx, yy)+heightmap->values[xx + yy * heightmap->height]),
-								(value(water, xx, yy)/2 + .25) / 0.5);
+								(value(water, xx, yy) / height_multiplier /2 + .25) / 0.5);
         			}
 //        			else{
         				color = shade( color, value(gradient, xx, yy)/height_multiplier, 0.008);

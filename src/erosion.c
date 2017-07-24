@@ -772,10 +772,65 @@ void stavo_water_movement(map2d * heightmap, map2d * water, map2d * nextwater, m
 			}
 		}
 	}
-
-
-
 }
+
+
+
+void calculate_indexes4sw(int * indexes, int xx, int yy, map2d * index_into ){
+	indexes[0] = m_index(index_into, xx, yy + 1);
+	indexes[1] = m_index(index_into, xx - 1, yy);
+	indexes[2] = m_index(index_into, xx, yy - 1);
+	indexes[3] = m_index(index_into, xx + 1, yy);
+}
+
+
+/**
+ * Does water movement according to velocity computed at southeast of the cell's center.
+ * My own scheme:
+ * A B
+ *  +
+ * C D
+ *
+ * U = horizontal ( eastward )
+ * V = vertical ( northward )
+ *
+ * the values of U and V are located at the southeast corner of the map tile.
+ *
+ * dU = ((A + C) - (B + D)) * .5
+ * dV = ((C + D) - (A + B)) * .5
+ *
+ * or something like that
+ *
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

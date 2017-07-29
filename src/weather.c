@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 const float RAIN_CONSTANT = 1.0/1024.0/365.0/24.0;
+extern float gravity;
 
 #define METER 0.0000565
 #define MILLIMETER (METER / 1000.0)
@@ -769,6 +770,19 @@ void temperature_pressure(map2d * temperature, map2d * pressure,  map2d * ew_vel
 }
 
 
+/**
+ * The goal of this function is to set the surface pressure so that the sea level pressure is 1013.25 mbar.
+ */
+void set_initial_pressures( map2d * height, map2d * water, map2d * virtual_temperature, map2d * surface_pressure, float sea_level){
+
+	for( int yy = 0; yy < height->height - 1; ++yy){
+		for( int xx = 0; xx < height->width; ++xx){
+			int index = m_index(height, xx, yy);
+
+			surface_pressure->values[index] = 1013.25 / exp(gravity * (height->values[index] + water->values[index] - sea_level) / ( GAS_CONSTANT_DRY_AIR * virtual_temperature->values[index]));
+		}
+	}
+}
 
 
 

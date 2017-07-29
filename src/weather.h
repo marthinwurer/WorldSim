@@ -12,6 +12,7 @@
 
 
 #define GAS_CONSTANT_DRY_AIR		287.1
+#define GRAVITY						9.81
 
 float base_temp(float latitude);
 map2d * temp_map_from_heightmap(map2d* heightmap, float sealevel, float max);
@@ -37,5 +38,7 @@ void calc_real_height(map2d * heightmap, map2d * water,  map2d * real_height, fl
 void geopotential(map2d * heightmap, map2d * pressure,  map2d * ew_velocity, map2d * ns_velocity, float timestep);
 
 void temperature_pressure(map2d * temperature, map2d * pressure,  map2d * ew_velocity, map2d * ns_velocity, float timestep);
+
+void set_initial_pressures( map2d * height, map2d * water, map2d * virtual_temperature, map2d * surface_pressure, float sea_level);
 
 #endif /* WEATHER_H_ */

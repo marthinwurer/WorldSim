@@ -65,7 +65,7 @@
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 10; // the power of two that represents the current map size
+const int FRACTAL_POWER = 8; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.1; // the minimum amount of water where the tile will be seen as having water in it.
@@ -82,7 +82,7 @@ float squarelen = 39063.0f;
 
 
 // acceleration due to gravity
-float gravity = 9.8f;
+float gravity = 9.81f;
 
 
 rng_state_t my_rand;
@@ -238,6 +238,8 @@ int main(void) {
 	map2d * water_gradient = sobel_gradient(heightmap, &maxval); // water gradient (show waves
 
 	map2d * pressure = new_map2d(heightmap->width, heightmap->height); // atmospheric pressure at each point
+	map2d * surface_temperature = new_map2d(heightmap->width, heightmap->height); // surface real temperature
+	map2d * surface_potential_temperature = new_map2d(heightmap->width, heightmap->height); // surface real temperature
 	map2d * convergence = new_map2d(heightmap->width, heightmap->height); // field towards the point
 	map2d * ns_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the north of the current tile.
 	map2d * ew_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the west of the current tile.
@@ -330,7 +332,6 @@ int main(void) {
 //	}
 
 	// set up weather things
-	map2d * temp_map = temp_map_from_heightmap(heightmap, BASE_SEA_LEVEL, 1.0);
 #ifdef DO_WEATHER
 
 	// set up the pressure  and velocity maps
@@ -338,12 +339,15 @@ int main(void) {
 		// p = rt
 		// r = 287.1
 		// 287 *
-		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
+		// do sea level pressure version first
+//		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
 //		pressure->values[ii] = 1000.0;
 
 		ew_velocity->values[ii] = 0.0;
 		ns_velocity->values[ii] = 0.0;
+		surface_temperature->values[ii] = 273.15f;
 	}
+	set_initial_pressures(heightmap, water, surface_temperature, pressure, BASE_SEA_LEVEL * height_multiplier);
 
 //	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
 //	map_set(ew_velocity, heightmap->width/2, -10, -1000);
@@ -370,7 +374,7 @@ int main(void) {
 
     totalwater = map2d_total(water);
     double vapor; // the amount of water to precipitate.
-    float maxwater = evaporate(water, ground_water, &vapor, evaporated_water, temp_map);
+    float maxwater = evaporate(water, ground_water, &vapor, evaporated_water, surface_temperature);
 	float watermax = 0;
 
 
@@ -743,29 +747,29 @@ int main(void) {
 
         }
         else if (display_mode == 5){
-        	map2d * water_divergance = new_map2d(heightmap->width, heightmap->height);
+//        	map2d * water_divergance = new_map2d(heightmap->width, heightmap->height);
+//
+//        	for( int yy = 0; yy < heightmap->height; yy++){
+//        		for( int xx = 0; xx < heightmap->width; xx++){
+//
+//        			// sum the water velocity
+//        			float vel = 0;
+//#ifdef DO_STAVO_WATER
+//        			for( int ii = 0; ii < 4; ii++){
+//        				vel += velocities[ii]->values[xx + yy * heightmap->height];
+//        			}
+//#else
+//        			for( int ii = 0; ii < 8; ii++){
+//        				vel += velocities[ii]->values[xx + yy * heightmap->height];
+//        			}
+//#endif
+//        			water_divergance->values[xx + yy * heightmap->height] = vel;
+//
+//        			watermax = max(vel, watermax);
+//        		}
+//        	}
 
-        	for( int yy = 0; yy < heightmap->height; yy++){
-        		for( int xx = 0; xx < heightmap->width; xx++){
-
-        			// sum the water velocity
-        			float vel = 0;
-#ifdef DO_STAVO_WATER
-        			for( int ii = 0; ii < 4; ii++){
-        				vel += velocities[ii]->values[xx + yy * heightmap->height];
-        			}
-#else
-        			for( int ii = 0; ii < 8; ii++){
-        				vel += velocities[ii]->values[xx + yy * heightmap->height];
-        			}
-#endif
-        			water_divergance->values[xx + yy * heightmap->height] = vel;
-
-        			watermax = max(vel, watermax);
-        		}
-        	}
-
-        	map2d * disp_map = water_divergance;
+        	map2d * disp_map = pressure;
 
 //        	check_nan(convergence, __FILE__, __LINE__);
 
@@ -844,13 +848,13 @@ int main(void) {
         	advect_momentum(ew_velocity, ns_velocity, ns_velocity_old, timestep);
         	advect_momentum(ew_velocity, ns_velocity, ew_velocity_old, timestep);
 
-        	calc_real_height(heightmap, water, real_height, BASE_SEA_LEVEL);
+        	calc_real_height(heightmap, water, real_height, BASE_SEA_LEVEL * height_multiplier);
 
         	geopotential(real_height, pressure, ew_velocity_old, ns_velocity_old, timestep);
 //        	temperature_pressure(temp_map, pressure, ew_velocity_old, ns_velocity_old, timestep);
 
         	temp = ew_velocity;
-            map2d ** velocities = water_pipes(
+//            map2d ** velocities = water_pipes(
         	ew_velocity = ew_velocity_old;
         	ew_velocity_old = temp;
         	temp = ns_velocity;
@@ -894,7 +898,7 @@ int main(void) {
 #endif
 
 #endif
-        	maxwater = evaporate(water, ground_water, &vapor, evaporated_water, temp_map);
+        	maxwater = evaporate(water, ground_water, &vapor, evaporated_water, surface_temperature);
 #endif
 
 

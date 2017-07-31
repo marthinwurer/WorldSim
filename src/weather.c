@@ -786,12 +786,153 @@ void set_initial_pressures( map2d * height, map2d * water, map2d * virtual_tempe
 
 
 
+/**
+ * Do my own weather according to velocity computed at southeast of the cell's center.
+ * My own scheme:
+ * A B
+ *  +
+ * C D
+ *
+ * U = horizontal ( eastward )
+ * V = vertical ( northward )
+ *
+ * the values of U and V are located at the southeast corner of the map tile.
+ *
+ * dU = ((A + C) - (B + D)) * .5
+ * dV = ((C + D) - (A + B)) * .5
+ *
+ * or something like that
+ *
+ */
+// OR JUST PORT GCM II
+void aflux(
+		map2d * u_corner, map2d * v_corner,
+		map2d * u_edge, map2d * v_edge,
+		map2d * pressure,
+		map2d * pressure_tendency,
+		map2d * convergence,
+		float timestep,
+		float dx,
+		float dy){
+
+	// compute the edge flux from the corners
+	// lines 1826-1841
+	for( int yy = 0; yy < u_corner->height; ++yy){
+		for( int xx = 0; xx < u_corner->width; ++xx){
+			int index = m_index(u_corner, xx, yy);
+			int north = m_index(u_corner, xx, yy - 1);
+			int south = m_index(u_corner, xx, yy + 1);
+			int west = m_index(u_corner, xx - 1, yy);
+			int east = m_index(u_corner, xx + 1, yy);
+			int southwest = m_index(u_corner, xx - 1, yy + 1);
+
+			// TODO: no more toroids
+			u_edge->values[index] = 0.25f * dx *
+					(u_corner->values[north] + u_corner->values[index]) *
+					(pressure->values[index] + pressure->values[east]);
+			v_edge->values[index] = 0.25f * dy *
+					(u_corner->values[west] + u_corner->values[index]) *
+					(pressure->values[index] + pressure->values[south]);
+		}
+	}
+
+	// compute the convergence (and pressure tendency)
+	// 1873-1885
+	for( int yy = 0; yy < u_corner->height; ++yy){
+		for( int xx = 0; xx < u_corner->width; ++xx){
+			int index = m_index(u_corner, xx, yy);
+			int north = m_index(u_corner, xx, yy - 1);
+			int south = m_index(u_corner, xx, yy + 1);
+			int west = m_index(u_corner, xx - 1, yy);
+			int east = m_index(u_corner, xx + 1, yy);
+			int southwest = m_index(u_corner, xx - 1, yy + 1);
+
+			convergence->values[index] =
+					(u_edge->values[west] - u_edge->values[index] +
+					v_edge->values[north] - v_edge->values[index]) ; // * DSIG
+
+			// line 1880 multiplies it by the difference in sigma, which does ...
+			//
+			// something.
+
+			// also apply the convergence to the pressure tendency.
+			// lines 1886-1897
+			pressure_tendency->values[index] += convergence->values[index];
+		}
+	}
 
 
 
 
+	// not doing sigma dot yet
 
 
+
+
+}
+
+
+
+void advectm(
+		map2d * pressure_tendency,
+		map2d * pressure,
+		map2d * new_pressure,
+		float dt,
+		float dx,
+		float dy){
+
+	// I think this is actually right.
+	// need to double check when I do geometry
+	float dxyp = dx * dy;
+
+	// lines 1948-1950
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+
+			// there's a special version of dx/dy, dxyp being used. need to take a look
+			new_pressure->values[index] = pressure->values[index] +
+					(dt * pressure_tendency->values[index] / dxyp);
+
+		}
+	}
+}
+
+
+
+
+void advectv(
+		map2d * u_corner, map2d * v_corner,
+		map2d * u_edge, map2d * v_edge,
+		map2d * u_edge, map2d * v_edge,
+		map2d * pressure,
+		map2d * new_pressure,
+		float dt,
+		float dx,
+		float dy){
+
+
+	// starts with some scaling, don't think I need this yet
+
+
+	// advect momentum.
+	// 2016-2057
+	for( int yy = 0; yy < u_corner->height; ++yy){
+		for( int xx = 0; xx < u_corner->width; ++xx){
+			int index = m_index(u_corner, xx, yy);
+			int north = m_index(u_corner, xx, yy - 1);
+			int south = m_index(u_corner, xx, yy + 1);
+			int west = m_index(u_corner, xx - 1, yy);
+			int east = m_index(u_corner, xx + 1, yy);
+			int southwest = m_index(u_corner, xx - 1, yy + 1);
+
+
+		}
+	}
+
+
+
+}
 
 
 

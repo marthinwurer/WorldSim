@@ -239,12 +239,14 @@ int main(void) {
 
 	map2d * pressure = new_map2d(heightmap->width, heightmap->height); // atmospheric pressure at each point
 	map2d * surface_temperature = new_map2d(heightmap->width, heightmap->height); // surface real temperature
-	map2d * surface_potential_temperature = new_map2d(heightmap->width, heightmap->height); // surface real temperature
+	map2d * surface_potential_temperature = new_map2d(heightmap->width, heightmap->height); // surface potential temperature
 	map2d * convergence = new_map2d(heightmap->width, heightmap->height); // field towards the point
-	map2d * ns_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the north of the current tile.
-	map2d * ew_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the west of the current tile.
-	map2d * ns_velocity_old = new_map2d(heightmap->width, heightmap->height);
-	map2d * ew_velocity_old = new_map2d(heightmap->width, heightmap->height);
+	// these are at the SE corners of each cell.
+	map2d * sn_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the north of the current tile. U, at corners
+	map2d * we_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the east of the current tile. V, at corners
+	// values at edges
+	map2d * sn_v_edge = new_map2d(heightmap->width, heightmap->height); // edge velocity from the south to the north. At edges
+	map2d * we_v_edge = new_map2d(heightmap->width, heightmap->height); // edge velocity from the west to the east. At edges
 	map2d * tracer = new_map2d(heightmap->width, heightmap->height);
 
 #ifdef DO_STAVO_WATER
@@ -334,7 +336,7 @@ int main(void) {
 	// set up weather things
 #ifdef DO_WEATHER
 
-	// set up the pressure  and velocity maps
+	// set up the pressure and velocity maps
 	for( int ii = 0; ii < tiles; ii++){
 		// p = rt
 		// r = 287.1
@@ -363,9 +365,6 @@ int main(void) {
 			}
 		}
 	}
-	// get the convergence
-	calc_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
-
 
 #endif
 
@@ -837,29 +836,6 @@ int main(void) {
 
 
 #ifdef DO_WEATHER
-        	// calculate a weather time step
-        	float timestep = 0.01;
-        	my_air_velocities(pressure, ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, convergence);
-        	calc_new_pressure(pressure, convergence, timestep);
-//        	advect_velocities(ew_velocity, ew_velocity_old, ns_velocity, ns_velocity_old, timestep);
-        	advect_tracer(ew_velocity, ns_velocity, tracer, timestep);
-        	// try to advect momentum
-//        	advect_tracer(ew_velocity, ns_velocity, ew_velocity_old, timestep);
-        	advect_momentum(ew_velocity, ns_velocity, ns_velocity_old, timestep);
-        	advect_momentum(ew_velocity, ns_velocity, ew_velocity_old, timestep);
-
-        	calc_real_height(heightmap, water, real_height, BASE_SEA_LEVEL * height_multiplier);
-
-        	geopotential(real_height, pressure, ew_velocity_old, ns_velocity_old, timestep);
-//        	temperature_pressure(temp_map, pressure, ew_velocity_old, ns_velocity_old, timestep);
-
-        	temp = ew_velocity;
-//            map2d ** velocities = water_pipes(
-        	ew_velocity = ew_velocity_old;
-        	ew_velocity_old = temp;
-        	temp = ns_velocity;
-        	ns_velocity = ns_velocity_old;
-        	ns_velocity_old = temp;
 #endif
 
 

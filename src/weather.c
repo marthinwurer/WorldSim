@@ -817,14 +817,14 @@ void aflux(
 
 	// compute the edge flux from the corners
 	// lines 1826-1841
-	for( int yy = 0; yy < u_corner->height; ++yy){
-		for( int xx = 0; xx < u_corner->width; ++xx){
-			int index = m_index(u_corner, xx, yy);
-			int north = m_index(u_corner, xx, yy - 1);
-			int south = m_index(u_corner, xx, yy + 1);
-			int west = m_index(u_corner, xx - 1, yy);
-			int east = m_index(u_corner, xx + 1, yy);
-			int southwest = m_index(u_corner, xx - 1, yy + 1);
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int south = m_index(pressure, xx, yy + 1);
+			int west = m_index(pressure, xx - 1, yy);
+			int east = m_index(pressure, xx + 1, yy);
+			int southwest = m_index(pressure, xx - 1, yy + 1);
 
 			// TODO: no more toroids
 			u_edge->values[index] = 0.25f * dx *
@@ -838,14 +838,14 @@ void aflux(
 
 	// compute the convergence (and pressure tendency)
 	// 1873-1885
-	for( int yy = 0; yy < u_corner->height; ++yy){
-		for( int xx = 0; xx < u_corner->width; ++xx){
-			int index = m_index(u_corner, xx, yy);
-			int north = m_index(u_corner, xx, yy - 1);
-			int south = m_index(u_corner, xx, yy + 1);
-			int west = m_index(u_corner, xx - 1, yy);
-			int east = m_index(u_corner, xx + 1, yy);
-			int southwest = m_index(u_corner, xx - 1, yy + 1);
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int south = m_index(pressure, xx, yy + 1);
+			int west = m_index(pressure, xx - 1, yy);
+			int east = m_index(pressure, xx + 1, yy);
+			int southwest = m_index(pressure, xx - 1, yy + 1);
 
 			convergence->values[index] =
 					(u_edge->values[west] - u_edge->values[index] +
@@ -904,7 +904,6 @@ void advectm(
 void advectv(
 		map2d * u_corner, map2d * v_corner,
 		map2d * u_edge, map2d * v_edge,
-		map2d * u_edge, map2d * v_edge,
 		map2d * pressure,
 		map2d * new_pressure,
 		float dt,
@@ -917,15 +916,16 @@ void advectv(
 
 	// advect momentum.
 	// 2016-2057
-	for( int yy = 0; yy < u_corner->height; ++yy){
-		for( int xx = 0; xx < u_corner->width; ++xx){
-			int index = m_index(u_corner, xx, yy);
-			int north = m_index(u_corner, xx, yy - 1);
-			int south = m_index(u_corner, xx, yy + 1);
-			int west = m_index(u_corner, xx - 1, yy);
-			int east = m_index(u_corner, xx + 1, yy);
-			int southwest = m_index(u_corner, xx - 1, yy + 1);
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int south = m_index(pressure, xx, yy + 1);
+			int west = m_index(pressure, xx - 1, yy);
+			int east = m_index(pressure, xx + 1, yy);
+			int southwest = m_index(pressure, xx - 1, yy + 1);
 
+			//TODO
 
 		}
 	}
@@ -935,6 +935,65 @@ void advectv(
 }
 
 
+void pgf(
+		map2d * u_corner, map2d * v_corner,
+		map2d * u_edge, map2d * v_edge,
+		map2d * pressure,
+		map2d * temperature, // this is the potential temperature
+		map2d * geopotential,
+		map2d * new_pressure,
+		map2d * spa,
+		float dt,
+		float dx,
+		float dy){
+
+	// TODO: for 3d real model, need to adjust geopotential for first layer
+	// see lines 489 of DB11pdC9.f
+
+	// calculate the SPA, whatever that means
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+
+			// TODO: will need to be changed with layers for pi and pdn
+			spa->values[index] = pow(pressure->values[index], KAPPA) *
+					temperature->values[index] * GAS_CONSTANT_DRY_AIR;
+
+		}
+	}
+
+
+
+	// now do the pressure gradient and geopotential gradient
+	// lines 2188-2214
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int south = m_index(pressure, xx, yy + 1);
+			int west = m_index(pressure, xx - 1, yy);
+			int east = m_index(pressure, xx + 1, yy);
+
+			//TODO
+			// just add it to the edge momentums for the moment.
+			// eastward
+			float flux;
+			flux= dt * dx * .25 * (
+					((pressure->values[index] + pressure->values[east]) *
+							(geopotential->values[index] - geopotential->values[east]))
+					+ ((spa->values[index] + spa->values[east]) *
+							(pressure->values[index] - pressure->values[east])));
+			u_edge->values[index] -= flux;
+
+			flux= dt * dy * .25 * (
+					((pressure->values[index] + pressure->values[south]) *
+							(geopotential->values[index] - geopotential->values[south]))
+					+ ((spa->values[index] + spa->values[south]) *
+							(pressure->values[index] - pressure->values[south])));
+			v_edge->values[index] -= flux;
+		}
+	}
+}
 
 
 

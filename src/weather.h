@@ -12,7 +12,9 @@
 
 
 #define GAS_CONSTANT_DRY_AIR		287.1
+#define SPECIFIC_HEAT_DRY_AIR		1004.0
 #define GRAVITY						9.81
+#define KAPPA						0.286
 
 float base_temp(float latitude);
 map2d * temp_map_from_heightmap(map2d* heightmap, float sealevel, float max);

@@ -65,7 +65,7 @@
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 4; // the power of two that represents the current map size
+const int FRACTAL_POWER = 5; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.1; // the minimum amount of water where the tile will be seen as having water in it.
@@ -402,7 +402,7 @@ int main(void) {
 
     // calculate boolean
     int play = 0;
-    int step = 1;
+    int step = 0;
 
 
     // mouse location
@@ -495,13 +495,15 @@ int main(void) {
 
 
         // ENTER THE MAIN LOOP
+    printf("Entering Main Loop\n");
     for(;;){
         gettimeofday(&start, NULL);
+        if( play || step){
 
-    	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
-    	fflush(stdout);
+        	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
+        	fflush(stdout);
 //        check_nan(heightmap, __FILE__, __LINE__);
-
+        }
 
 #ifdef RENDER_SCREEN
         // process all events in the queue.
@@ -773,7 +775,7 @@ int main(void) {
 //        		}
 //        	}
 
-        	map2d * disp_map = pressure;
+        	map2d * disp_map = pressure                        ;
 
 //        	check_nan(convergence, __FILE__, __LINE__);
 
@@ -781,7 +783,6 @@ int main(void) {
         	render_map(gRenderer, we_m_edge, heightmap->width, 0);
         	render_map(gRenderer, spa, heightmap->width * 2, 0);
 
-        	printf("value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
 
         	char title[128];
         	sprintf(title, "value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
@@ -799,8 +800,12 @@ int main(void) {
         			max_v = max(max_v, val);
         		}
         	}
-        	printf("min: %f, max: %f\n", min_v, max_v);
+            if( play || step){
 
+            	printf("value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
+
+            	printf("min: %f, max: %f\n", min_v, max_v);
+            }
 
         }
 
@@ -846,18 +851,36 @@ int main(void) {
 //        	calc_real_height(height, water, real_height,)
         	// do the weather loop
         	// Maybe do aflux -> advec[mtq] -> pgf -> advecv?
+//        	dispDS(we_velocity);
+
         	aflux(we_velocity, sn_velocity, we_m_edge, sn_m_edge, pressure,
         			pressure_tendency, convergence,
 					timestep, squarelen, squarelen);
+        	check_nan(we_m_edge, __FILE__, __LINE__);
+        	check_nan(sn_m_edge, __FILE__, __LINE__);
+
         	pgf(we_m_edge, sn_m_edge, pressure,
         			surface_potential_temperature, heightmap, spa,
 					timestep, squarelen, squarelen);
+        	check_nan(we_m_edge, __FILE__, __LINE__);
+        	check_nan(sn_m_edge, __FILE__, __LINE__);
+        	check_nan(spa, __FILE__, __LINE__);
+        	check_nan(surface_potential_temperature, __FILE__, __LINE__);
+
+
         	advectm(pressure_tendency, pressure, new_pressure,
         			timestep, squarelen, squarelen);
         	swapmap(&pressure, &new_pressure);
+
+        	check_nan(pressure, __FILE__, __LINE__);
+
         	advectv(we_velocity, sn_velocity, we_m_edge, sn_m_edge,
         			pressure,
         			timestep, squarelen, squarelen);
+        	check_nan(we_m_edge, __FILE__, __LINE__);
+        	check_nan(sn_m_edge, __FILE__, __LINE__);
+        	check_nan(we_velocity, __FILE__, __LINE__);
+        	check_nan(sn_velocity, __FILE__, __LINE__);
 
 
 
@@ -933,8 +956,12 @@ int main(void) {
         useconds = end.tv_usec - start.tv_usec;
 
         mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+        if( play || step){
 
-        printf("Elapsed time: %ld milliseconds\n", mtime);
+        	printf("Elapsed time: %ld milliseconds\n", mtime);
+        }else{
+        	usleep((unsigned int)10);
+        }
         count ++;
     }
 #ifdef RENDER_SCREEN

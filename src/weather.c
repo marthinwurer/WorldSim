@@ -779,7 +779,7 @@ void set_initial_pressures( map2d * height, map2d * water, map2d * virtual_tempe
 		for( int xx = 0; xx < height->width; ++xx){
 			int index = m_index(height, xx, yy);
 
-			surface_pressure->values[index] = 1013.25 / exp(gravity * (height->values[index] + water->values[index] - sea_level) / ( GAS_CONSTANT_DRY_AIR * virtual_temperature->values[index]));
+			surface_pressure->values[index] = 101.325 / exp(gravity * (height->values[index] + water->values[index] - sea_level) / ( GAS_CONSTANT_DRY_AIR * virtual_temperature->values[index]));
 		}
 	}
 }
@@ -814,6 +814,8 @@ void aflux(
 		float timestep,
 		float dx,
 		float dy){
+	printf("%f, %f, %f\n", timestep, dx, dy);
+	dispDS(u_corner);
 
 	// compute the edge flux from the corners
 	// lines 1826-1841
@@ -824,17 +826,21 @@ void aflux(
 			int south = m_index(pressure, xx, yy + 1);
 			int west = m_index(pressure, xx - 1, yy);
 			int east = m_index(pressure, xx + 1, yy);
-			int southwest = m_index(pressure, xx - 1, yy + 1);
 
 			// TODO: no more toroids
 			u_edge->values[index] = 0.25f * dx *
 					(u_corner->values[north] + u_corner->values[index]) *
 					(pressure->values[index] + pressure->values[east]);
 			v_edge->values[index] = 0.25f * dy *
-					(u_corner->values[west] + u_corner->values[index]) *
+					(v_corner->values[west] + v_corner->values[index]) *
 					(pressure->values[index] + pressure->values[south]);
+
+			printf("%f, %f, %f\n", u_edge->values[index], v_edge->values[index], 0.0);
+
 		}
 	}
+	check_nan(u_edge, __FILE__, __LINE__);
+	check_nan(v_edge, __FILE__, __LINE__);
 
 	// compute the convergence (and pressure tendency)
 	// 1873-1885
@@ -860,6 +866,8 @@ void aflux(
 			pressure_tendency->values[index] += convergence->values[index];
 		}
 	}
+	check_nan(convergence, __FILE__, __LINE__);
+	check_nan(pressure_tendency, __FILE__, __LINE__);
 
 
 
@@ -900,12 +908,12 @@ void advectm(
 
 
 
-
+// I want this to convert everything back to corner velocity and do the
+// friction and coriolis force too. Maybe do aflux -> advec[mtq] -> pgf -> advecv?
 void advectv(
-		map2d * u_corner, map2d * v_corner,
-		map2d * u_edge, map2d * v_edge,
+		map2d * u_corner, map2d * v_corner, // velocity
+		map2d * u_edge, map2d * v_edge, // momentum
 		map2d * pressure,
-		map2d * new_pressure,
 		float dt,
 		float dx,
 		float dy){
@@ -914,8 +922,25 @@ void advectv(
 	// starts with some scaling, don't think I need this yet
 
 
-	// advect momentum.
-	// 2016-2057
+//	// advect momentum.
+//	// 2016-2057
+//	for( int yy = 0; yy < pressure->height; ++yy){
+//		for( int xx = 0; xx < pressure->width; ++xx){
+//			int index = m_index(pressure, xx, yy);
+//			int north = m_index(pressure, xx, yy - 1);
+//			int south = m_index(pressure, xx, yy + 1);
+//			int west = m_index(pressure, xx - 1, yy);
+//			int east = m_index(pressure, xx + 1, yy);
+//			int southwest = m_index(pressure, xx - 1, yy + 1);
+//
+//			//TODO
+//
+//		}
+//	}
+
+
+	// turn the momentum back into the velocity
+	// my own code
 	for( int yy = 0; yy < pressure->height; ++yy){
 		for( int xx = 0; xx < pressure->width; ++xx){
 			int index = m_index(pressure, xx, yy);
@@ -923,25 +948,25 @@ void advectv(
 			int south = m_index(pressure, xx, yy + 1);
 			int west = m_index(pressure, xx - 1, yy);
 			int east = m_index(pressure, xx + 1, yy);
-			int southwest = m_index(pressure, xx - 1, yy + 1);
+			int southeast = m_index(pressure, xx + 1, yy + 1);
 
-			//TODO
-
+			u_corner->values[index] =
+					(u_edge->values[index]/(pressure->values[index] + pressure->values[east]) +
+					u_edge->values[south]/(pressure->values[south] + pressure->values[southeast]));
+			v_corner->values[index] =
+					(v_edge->values[index]/(pressure->values[index] + pressure->values[south]) +
+					v_edge->values[east]/(pressure->values[east] + pressure->values[southeast]));
 		}
 	}
-
-
 
 }
 
 
 void pgf(
-		map2d * u_corner, map2d * v_corner,
 		map2d * u_edge, map2d * v_edge,
 		map2d * pressure,
 		map2d * temperature, // this is the potential temperature
 		map2d * geopotential,
-		map2d * new_pressure,
 		map2d * spa,
 		float dt,
 		float dx,

@@ -59,13 +59,13 @@
 #define DO_WATER
 #define DO_STAVO_WATER
 
-//#define DO_WEATHER
+#define DO_WEATHER
 
 
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 8; // the power of two that represents the current map size
+const int FRACTAL_POWER = 4; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.1; // the minimum amount of water where the tile will be seen as having water in it.
@@ -74,11 +74,11 @@ float height_multiplier = 8192.0f; // the amount the fractal height is multiplie
 const float BASE_SEA_LEVEL = 0.5;
 
 // the time in seconds between each timestep
-float timestep = 900.0f;
+float timestep = 1.0f;
 
 // the square edge length in meters (assume that everything is a perfect square/cube)
 //float squarelen = 1156250.0f;
-float squarelen = 39063.0f;
+float squarelen = 1000.0f;
 
 
 // acceleration due to gravity
@@ -237,16 +237,21 @@ int main(void) {
 	map2d * evaporated_water = DSCreate(FRACTAL_POWER, &my_rand); // the rain map
 	map2d * water_gradient = sobel_gradient(heightmap, &maxval); // water gradient (show waves
 
+	// values at the center of each cell
 	map2d * pressure = new_map2d(heightmap->width, heightmap->height); // atmospheric pressure at each point
+	map2d * new_pressure = new_map2d(heightmap->width, heightmap->height); // atmospheric pressure at each point
 	map2d * surface_temperature = new_map2d(heightmap->width, heightmap->height); // surface real temperature
 	map2d * surface_potential_temperature = new_map2d(heightmap->width, heightmap->height); // surface potential temperature
 	map2d * convergence = new_map2d(heightmap->width, heightmap->height); // field towards the point
+	map2d * pressure_tendency = new_map2d(heightmap->width, heightmap->height); // field towards the point
+	map2d * spa = new_map2d(heightmap->width, heightmap->height); // sigma * pressure / density (part of pressure gradient term)
+
 	// these are at the SE corners of each cell.
 	map2d * sn_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the north of the current tile. U, at corners
 	map2d * we_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the east of the current tile. V, at corners
-	// values at edges
-	map2d * sn_v_edge = new_map2d(heightmap->width, heightmap->height); // edge velocity from the south to the north. At edges
-	map2d * we_v_edge = new_map2d(heightmap->width, heightmap->height); // edge velocity from the west to the east. At edges
+	// values at edges - momentum
+	map2d * sn_m_edge = new_map2d(heightmap->width, heightmap->height); // edge momentum from the south to the north. At edges
+	map2d * we_m_edge = new_map2d(heightmap->width, heightmap->height); // edge momentum from the west to the east. At edges
 	map2d * tracer = new_map2d(heightmap->width, heightmap->height);
 
 #ifdef DO_STAVO_WATER
@@ -345,8 +350,8 @@ int main(void) {
 //		pressure->values[ii] = 0.0117*287*temp_map->values[ii];
 //		pressure->values[ii] = 1000.0;
 
-		ew_velocity->values[ii] = 0.0;
-		ns_velocity->values[ii] = 0.0;
+		sn_velocity->values[ii] = 0.0;
+		we_velocity->values[ii] = 0.0;
 		surface_temperature->values[ii] = 273.15f;
 	}
 	set_initial_pressures(heightmap, water, surface_temperature, pressure, BASE_SEA_LEVEL * height_multiplier);
@@ -360,7 +365,7 @@ int main(void) {
 //			}
 
 			if( yy == heightmap->height - 1){
-				ns_velocity->values[m_index(ns_velocity, xx, yy)] = 0.0;
+				sn_velocity->values[m_index(sn_velocity, xx, yy)] = 0.0;
 
 			}
 		}
@@ -773,8 +778,8 @@ int main(void) {
 //        	check_nan(convergence, __FILE__, __LINE__);
 
         	render_map(gRenderer, disp_map, 0, 0);
-        	render_map(gRenderer, convergence, heightmap->width, 0);
-        	render_map(gRenderer, tracer, heightmap->width * 2, 0);
+        	render_map(gRenderer, we_m_edge, heightmap->width, 0);
+        	render_map(gRenderer, spa, heightmap->width * 2, 0);
 
         	printf("value at mouse: %f    ", value(disp_map, mouse_x, mouse_y));
 
@@ -811,7 +816,8 @@ int main(void) {
         	step = 0; // let me step through frames
 
         	map2d * temp;
-        	map2d ** ttemp;
+
+//        	map2d ** ttemp;
 
 #ifdef DO_EROSION
 #ifdef DO_THERMAL_EROSION
@@ -836,6 +842,25 @@ int main(void) {
 
 
 #ifdef DO_WEATHER
+        	// calc the real height
+//        	calc_real_height(height, water, real_height,)
+        	// do the weather loop
+        	// Maybe do aflux -> advec[mtq] -> pgf -> advecv?
+        	aflux(we_velocity, sn_velocity, we_m_edge, sn_m_edge, pressure,
+        			pressure_tendency, convergence,
+					timestep, squarelen, squarelen);
+        	pgf(we_m_edge, sn_m_edge, pressure,
+        			surface_potential_temperature, heightmap, spa,
+					timestep, squarelen, squarelen);
+        	advectm(pressure_tendency, pressure, new_pressure,
+        			timestep, squarelen, squarelen);
+        	swapmap(&pressure, &new_pressure);
+        	advectv(we_velocity, sn_velocity, we_m_edge, sn_m_edge,
+        			pressure,
+        			timestep, squarelen, squarelen);
+
+
+
 #endif
 
 

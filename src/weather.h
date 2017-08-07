@@ -43,4 +43,43 @@ void temperature_pressure(map2d * temperature, map2d * pressure,  map2d * ew_vel
 
 void set_initial_pressures( map2d * height, map2d * water, map2d * virtual_temperature, map2d * surface_pressure, float sea_level);
 
+void aflux(
+		map2d * u_corner, map2d * v_corner,
+		map2d * u_edge, map2d * v_edge,
+		map2d * pressure,
+		map2d * pressure_tendency,
+		map2d * convergence,
+		float timestep,
+		float dx,
+		float dy);
+
+void advectm(
+		map2d * pressure_tendency,
+		map2d * pressure,
+		map2d * new_pressure,
+		float dt,
+		float dx,
+		float dy);
+
+void advectv(
+		map2d * u_corner, map2d * v_corner, // velocity
+		map2d * u_edge, map2d * v_edge, // momentum
+		map2d * pressure,
+		float dt,
+		float dx,
+		float dy);
+
+void pgf(
+		map2d * u_edge, map2d * v_edge,
+		map2d * pressure,
+		map2d * temperature, // this is the potential temperature
+		map2d * geopotential,
+		map2d * spa,
+		float dt,
+		float dx,
+		float dy);
+
+
+
+
 #endif /* WEATHER_H_ */

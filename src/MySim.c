@@ -249,6 +249,8 @@ int main(void) {
 	// these are at the SE corners of each cell.
 	map2d * sn_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the north of the current tile. U, at corners
 	map2d * we_velocity = new_map2d(heightmap->width, heightmap->height); // velocity towards the east of the current tile. V, at corners
+	map2d * dut = new_map2d(heightmap->width, heightmap->height); // change in velocity towards the north of the current tile. U, at corners
+	map2d * dvt = new_map2d(heightmap->width, heightmap->height); // change in velocity towards the east of the current tile. V, at corners
 	// values at edges - momentum
 	map2d * sn_m_edge = new_map2d(heightmap->width, heightmap->height); // edge momentum from the south to the north. At edges
 	map2d * we_m_edge = new_map2d(heightmap->width, heightmap->height); // edge momentum from the west to the east. At edges
@@ -299,7 +301,7 @@ int main(void) {
 #elif 0
 			/* single slope */
 			map_set(heightmap, xx, yy, xx/(float)heightmap->width);
-#elif 0
+#elif 1
 			/* flat */
 			map_set(heightmap, xx, yy, BASE_SEA_LEVEL);
 #elif 0
@@ -873,7 +875,9 @@ int main(void) {
 
         	check_nan(pressure, __FILE__, __LINE__);
 
-        	advectv(we_velocity, sn_velocity, we_m_edge, sn_m_edge,
+        	advectv(we_velocity, sn_velocity,
+        			dut, dvt,
+        			we_m_edge, sn_m_edge,
         			pressure,
         			timestep, squarelen, squarelen);
         	check_nan(we_m_edge, __FILE__, __LINE__);

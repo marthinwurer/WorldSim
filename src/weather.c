@@ -915,6 +915,7 @@ void advectm(
 // friction and coriolis force too. Maybe do aflux -> advec[mtq] -> pgf -> advecv?
 void advectv(
 		map2d * u_corner, map2d * v_corner, // velocity
+		map2d * dut, map2d * dvt, // change in velocity over time
 		map2d * u_edge, map2d * v_edge, // momentum
 		map2d * pressure,
 		float dt,
@@ -925,21 +926,40 @@ void advectv(
 	// starts with some scaling, don't think I need this yet
 
 
-//	// advect momentum.
-//	// 2016-2057
-//	for( int yy = 0; yy < pressure->height; ++yy){
-//		for( int xx = 0; xx < pressure->width; ++xx){
-//			int index = m_index(pressure, xx, yy);
-//			int north = m_index(pressure, xx, yy - 1);
-//			int south = m_index(pressure, xx, yy + 1);
-//			int west = m_index(pressure, xx - 1, yy);
-//			int east = m_index(pressure, xx + 1, yy);
-//			int southwest = m_index(pressure, xx - 1, yy + 1);
-//
-//			//TODO
-//
-//		}
-//	}
+	// zero the changes  dut and dvt
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			dut->values[index] = 0;
+			dvt->values[index] = 0;
+		}
+	}
+
+
+	// advect momentum.
+	// 2016-2057
+	for( int yy = 0; yy < pressure->height; ++yy){
+		for( int xx = 0; xx < pressure->width; ++xx){
+			int index = m_index(pressure, xx, yy);
+			int north = m_index(pressure, xx, yy - 1);
+			int south = m_index(pressure, xx, yy + 1);
+			int west = m_index(pressure, xx - 1, yy);
+			int east = m_index(pressure, xx + 1, yy);
+			int southeast = m_index(pressure, xx + 1, yy + 1);
+
+			// west-east mass flux
+			float flux = dt/ 12 *
+					(u_edge->values[index] + u_edge->values[east] +
+							u_edge->values[south] + u_edge->values[southeast]);
+			float fluxu = flux * (u_corner->values[index] + u_corner->values[east]);
+			float fluxv = flux * (v_corner->values[index] + v_corner->values[east]);
+			dut->values[index] -= fluxu;
+			dut->values[east] += fluxu;
+			dvt->values[index] -= fluxv;
+			dvt->values[east] += fluxv;
+
+		}
+	}
 
 
 	// turn the momentum back into the velocity
@@ -954,11 +974,12 @@ void advectv(
 			int southeast = m_index(pressure, xx + 1, yy + 1);
 
 			u_corner->values[index] = (
-					(u_edge->values[index]/
-							((pressure->values[index] + pressure->values[east]) / 2)) +
-					(u_edge->values[south]/
-							((pressure->values[south] + pressure->values[southeast]) / 2))
-					) / 2;
+					((((u_edge->values[index] + u_edge->values[south]) / 2)
+//							+ dut->values[index]
+										  ) /
+							((pressure->values[index] + pressure->values[east] +
+									pressure->values[south] + pressure->values[southeast]) / 4))
+					);
 //			if(isnan(u_corner->values[index])){
 //				printf("NaN (%d, %d): %f %f %f %f %f %f\n", xx, yy,
 //						u_edge->values[index], pressure->values[index],

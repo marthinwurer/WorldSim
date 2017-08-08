@@ -63,6 +63,7 @@ void advectm(
 
 void advectv(
 		map2d * u_corner, map2d * v_corner, // velocity
+		map2d * dut, map2d * dvt, // change in velocity over time
 		map2d * u_edge, map2d * v_edge, // momentum
 		map2d * pressure,
 		float dt,

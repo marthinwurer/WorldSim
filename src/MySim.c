@@ -65,7 +65,7 @@
 const int SCREEN_WIDTH = 1024; // the width of the screen in pixels
 const int SCREEN_HEIGHT = 1024; // the height of the screen in pixels
 
-const int FRACTAL_POWER = 5; // the power of two that represents the current map size
+const int FRACTAL_POWER = 8; // the power of two that represents the current map size
 const int NUM_THREADS = 12; // the number of threads to use in the threadpool
 
 float min_water = 0.1; // the minimum amount of water where the tile will be seen as having water in it.
@@ -74,11 +74,11 @@ float height_multiplier = 8192.0f; // the amount the fractal height is multiplie
 const float BASE_SEA_LEVEL = 0.5;
 
 // the time in seconds between each timestep
-float timestep = 1.0f;
+float timestep = 900.0f;
 
 // the square edge length in meters (assume that everything is a perfect square/cube)
 //float squarelen = 1156250.0f;
-float squarelen = 1000.0f;
+float squarelen = 112000.0f;
 
 
 // acceleration due to gravity
@@ -356,7 +356,7 @@ int main(void) {
 	}
 	set_initial_pressures(heightmap, water, surface_temperature, pressure, BASE_SEA_LEVEL * height_multiplier);
 
-//	map_set(ew_velocity, heightmap->width/2, heightmap->height/2, -1000);
+	map_set(we_velocity, heightmap->width/2, heightmap->height/2, 1);
 //	map_set(ew_velocity, heightmap->width/2, -10, -1000);
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
@@ -775,13 +775,13 @@ int main(void) {
 //        		}
 //        	}
 
-        	map2d * disp_map = pressure                        ;
+        	map2d * disp_map =we_velocity ;
 
 //        	check_nan(convergence, __FILE__, __LINE__);
 
         	render_map(gRenderer, disp_map, 0, 0);
-        	render_map(gRenderer, we_m_edge, heightmap->width, 0);
-        	render_map(gRenderer, spa, heightmap->width * 2, 0);
+        	render_map(gRenderer, convergence, heightmap->width, 0);
+        	render_map(gRenderer, pressure, heightmap->width * 2, 0);
 
 
         	char title[128];
@@ -818,7 +818,6 @@ int main(void) {
 #endif
         // let me pause execution
         if( play || step){
-        	step = 0; // let me step through frames
 
         	map2d * temp;
 
@@ -848,7 +847,7 @@ int main(void) {
 
 #ifdef DO_WEATHER
         	// calc the real height
-//        	calc_real_height(height, water, real_height,)
+        	calc_real_height(heightmap, water, real_height, BASE_SEA_LEVEL * height_multiplier);
         	// do the weather loop
         	// Maybe do aflux -> advec[mtq] -> pgf -> advecv?
 //        	dispDS(we_velocity);
@@ -860,7 +859,7 @@ int main(void) {
         	check_nan(sn_m_edge, __FILE__, __LINE__);
 
         	pgf(we_m_edge, sn_m_edge, pressure,
-        			surface_potential_temperature, heightmap, spa,
+        			surface_potential_temperature, real_height, spa,
 					timestep, squarelen, squarelen);
         	check_nan(we_m_edge, __FILE__, __LINE__);
         	check_nan(sn_m_edge, __FILE__, __LINE__);
@@ -959,10 +958,12 @@ int main(void) {
         if( play || step){
 
         	printf("Elapsed time: %ld milliseconds\n", mtime);
+        	count ++;
         }else{
         	usleep((unsigned int)10);
         }
-        count ++;
+    	step = 0; // let me step through frames
+
     }
 #ifdef RENDER_SCREEN
     //Destroy window

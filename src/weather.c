@@ -645,7 +645,7 @@ void calc_real_height(map2d * heightmap, map2d * water,  map2d * real_height, fl
 		for( int xx = 0; xx < heightmap->width; ++xx){
 			int index = m_index(heightmap, xx, yy);
 
-			real_height->values[index] = (heightmap->values[index] + water->values[index] - sealevel) * 1000;
+			real_height->values[index] = (heightmap->values[index] + water->values[index] - sealevel);
 		}
 	}
 }
@@ -780,7 +780,7 @@ void set_initial_pressures( map2d * height, map2d * water, map2d * virtual_tempe
 		for( int xx = 0; xx < height->width; ++xx){
 			int index = m_index(height, xx, yy);
 
-			surface_pressure->values[index] = 101.325 / exp(gravity * (height->values[index] + water->values[index] - sea_level) / ( GAS_CONSTANT_DRY_AIR * virtual_temperature->values[index]));
+			surface_pressure->values[index] = 1013.25 / exp(gravity * (height->values[index] + water->values[index] - sea_level) / ( GAS_CONSTANT_DRY_AIR * virtual_temperature->values[index]));
 		}
 	}
 }
@@ -829,10 +829,10 @@ void aflux(
 			int east = m_index(pressure, xx + 1, yy);
 
 			// TODO: no more toroids
-			u_edge->values[index] = 0.25f * dx *
+			u_edge->values[index] = 0.25f *//dx *
 					(u_corner->values[north] + u_corner->values[index]) *
 					(pressure->values[index] + pressure->values[east]);
-			v_edge->values[index] = 0.25f * dy *
+			v_edge->values[index] = 0.25f * //dy *
 					(v_corner->values[west] + v_corner->values[index]) *
 					(pressure->values[index] + pressure->values[south]);
 
@@ -864,7 +864,7 @@ void aflux(
 
 			// also apply the convergence to the pressure tendency.
 			// lines 1886-1897
-			pressure_tendency->values[index] += convergence->values[index];
+			pressure_tendency->values[index] = convergence->values[index];
 		}
 	}
 	check_nan(convergence, __FILE__, __LINE__);
@@ -900,8 +900,10 @@ void advectm(
 			int index = m_index(pressure, xx, yy);
 
 			// there's a special version of dx/dy, dxyp being used. need to take a look
-			new_pressure->values[index] = pressure->values[index] +
-					(dt * pressure_tendency->values[index] / dxyp);
+			float change = (dt * pressure_tendency->values[index] / dxyp);
+			new_pressure->values[index] = pressure->values[index]
+					+ change
+					;
 
 		}
 	}
@@ -951,14 +953,17 @@ void advectv(
 			int east = m_index(pressure, xx + 1, yy);
 			int southeast = m_index(pressure, xx + 1, yy + 1);
 
-			u_corner->values[index] =
-					(u_edge->values[index]/(pressure->values[index] + pressure->values[east]) +
-					u_edge->values[south]/(pressure->values[south] + pressure->values[southeast]));
-			if(isnan(u_corner->values[index])){
-				printf("NaN (%d, %d): %f %f %f %f %f %f\n", xx, yy,
-						u_edge->values[index], pressure->values[index],
-						pressure->values[east], u_edge->values[south], pressure->values[south], pressure->values[southeast]);
-			}
+			u_corner->values[index] = (
+					(u_edge->values[index]/
+							((pressure->values[index] + pressure->values[east]) / 2)) +
+					(u_edge->values[south]/
+							((pressure->values[south] + pressure->values[southeast]) / 2))
+					) / 2;
+//			if(isnan(u_corner->values[index])){
+//				printf("NaN (%d, %d): %f %f %f %f %f %f\n", xx, yy,
+//						u_edge->values[index], pressure->values[index],
+//						pressure->values[east], u_edge->values[south], pressure->values[south], pressure->values[southeast]);
+//			}
 			v_corner->values[index] =
 					(v_edge->values[index]/(pressure->values[index] + pressure->values[south]) +
 					v_edge->values[east]/(pressure->values[east] + pressure->values[southeast]));
@@ -1009,19 +1014,19 @@ void pgf(
 			// just add it to the edge momentums for the moment.
 			// eastward
 			float flux;
-			flux= dt / dx * .25 * (
+			flux = dt / dx * .25 * (
 					((pressure->values[index] + pressure->values[east]) *
-							(geopotential->values[index] - geopotential->values[east]))
-					+ ((spa->values[index] + spa->values[east]) *
+							(geopotential->values[index] - geopotential->values[east])) +
+					((spa->values[index] + spa->values[east]) *
 							(pressure->values[index] - pressure->values[east])));
-			u_edge->values[index] -= flux;
+			u_edge->values[index] += flux;
 
-			flux= dt / dy * .25 * (
+			flux = dt / dy * .25 * (
 					((pressure->values[index] + pressure->values[south]) *
-							(geopotential->values[index] - geopotential->values[south]))
-					+ ((spa->values[index] + spa->values[south]) *
+							(geopotential->values[index] - geopotential->values[south])) +
+					((spa->values[index] + spa->values[south]) *
 							(pressure->values[index] - pressure->values[south])));
-			v_edge->values[index] -= flux;
+			v_edge->values[index] += flux;
 		}
 	}
 

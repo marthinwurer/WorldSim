@@ -74,7 +74,7 @@ float height_multiplier = 8192.0f; // the amount the fractal height is multiplie
 const float BASE_SEA_LEVEL = 0.5;
 
 // the time in seconds between each timestep
-float timestep = 900.0f;
+float timestep = 120.0f;
 
 // the square edge length in meters (assume that everything is a perfect square/cube)
 //float squarelen = 1156250.0f;
@@ -301,7 +301,7 @@ int main(void) {
 #elif 0
 			/* single slope */
 			map_set(heightmap, xx, yy, xx/(float)heightmap->width);
-#elif 1
+#elif 0
 			/* flat */
 			map_set(heightmap, xx, yy, BASE_SEA_LEVEL);
 #elif 0
@@ -358,7 +358,7 @@ int main(void) {
 	}
 	set_initial_pressures(heightmap, water, surface_temperature, pressure, BASE_SEA_LEVEL * height_multiplier);
 
-	map_set(we_velocity, heightmap->width/2, heightmap->height/2, 1);
+	map_set(we_velocity, heightmap->width/2, heightmap->height/2, 10);
 //	map_set(ew_velocity, heightmap->width/2, -10, -1000);
 	for( int yy = 0; yy < heightmap->height; yy++){
 		for( int xx = 0; xx < heightmap->width; xx++){
@@ -777,7 +777,7 @@ int main(void) {
 //        		}
 //        	}
 
-        	map2d * disp_map =we_velocity ;
+        	map2d * disp_map = dvt;
 
 //        	check_nan(convergence, __FILE__, __LINE__);
 
@@ -857,16 +857,16 @@ int main(void) {
         	aflux(we_velocity, sn_velocity, we_m_edge, sn_m_edge, pressure,
         			pressure_tendency, convergence,
 					timestep, squarelen, squarelen);
-        	check_nan(we_m_edge, __FILE__, __LINE__);
-        	check_nan(sn_m_edge, __FILE__, __LINE__);
+//        	check_nan(we_m_edge, __FILE__, __LINE__);
+//        	check_nan(sn_m_edge, __FILE__, __LINE__);
 
         	pgf(we_m_edge, sn_m_edge, pressure,
         			surface_potential_temperature, real_height, spa,
 					timestep, squarelen, squarelen);
-        	check_nan(we_m_edge, __FILE__, __LINE__);
-        	check_nan(sn_m_edge, __FILE__, __LINE__);
-        	check_nan(spa, __FILE__, __LINE__);
-        	check_nan(surface_potential_temperature, __FILE__, __LINE__);
+//        	check_nan(we_m_edge, __FILE__, __LINE__);
+//        	check_nan(sn_m_edge, __FILE__, __LINE__);
+//        	check_nan(spa, __FILE__, __LINE__);
+//        	check_nan(surface_potential_temperature, __FILE__, __LINE__);
 
 
         	advectm(pressure_tendency, pressure, new_pressure,
@@ -880,10 +880,10 @@ int main(void) {
         			we_m_edge, sn_m_edge,
         			pressure,
         			timestep, squarelen, squarelen);
-        	check_nan(we_m_edge, __FILE__, __LINE__);
-        	check_nan(sn_m_edge, __FILE__, __LINE__);
-        	check_nan(we_velocity, __FILE__, __LINE__);
-        	check_nan(sn_velocity, __FILE__, __LINE__);
+//        	check_nan(we_m_edge, __FILE__, __LINE__);
+//        	check_nan(sn_m_edge, __FILE__, __LINE__);
+//        	check_nan(we_velocity, __FILE__, __LINE__);
+//        	check_nan(sn_velocity, __FILE__, __LINE__);
 
 
 

@@ -840,8 +840,6 @@ void aflux(
 
 		}
 	}
-	check_nan(u_edge, __FILE__, __LINE__);
-	check_nan(v_edge, __FILE__, __LINE__);
 
 	// compute the convergence (and pressure tendency)
 	// 1873-1885
@@ -867,8 +865,6 @@ void aflux(
 			pressure_tendency->values[index] = convergence->values[index];
 		}
 	}
-	check_nan(convergence, __FILE__, __LINE__);
-	check_nan(pressure_tendency, __FILE__, __LINE__);
 
 
 
@@ -948,15 +944,40 @@ void advectv(
 			int southeast = m_index(pressure, xx + 1, yy + 1);
 
 			// west-east mass flux
-			float flux = dt/ 12 *
+			float flux = dt / 12 *
 					(u_edge->values[index] + u_edge->values[east] +
 							u_edge->values[south] + u_edge->values[southeast]);
-			float fluxu = flux * (u_corner->values[index] + u_corner->values[east]);
-			float fluxv = flux * (v_corner->values[index] + v_corner->values[east]);
+			float fluxu = flux * (u_corner->values[index] + u_corner->values[east]) / dx;
+			float fluxv = flux * (v_corner->values[index] + v_corner->values[east]) / dy;
 			dut->values[index] -= fluxu;
 			dut->values[east] += fluxu;
 			dvt->values[index] -= fluxv;
 			dvt->values[east] += fluxv;
+
+
+			// south-north mass flux
+			flux = dt / 12 *
+					(v_edge->values[index] + v_edge->values[east] +
+							v_edge->values[south] + v_edge->values[southeast]);
+			fluxu = flux * (u_corner->values[index] + u_corner->values[south]) / dx;
+			fluxv = flux * (v_corner->values[index] + v_corner->values[south]) / dy;
+			dut->values[index] -= fluxu;
+			dut->values[south] += fluxu;
+			dvt->values[index] -= fluxv;
+			dvt->values[south] += fluxv;
+
+//			// sothwest - northeast mass flux
+//			flux = dt / 24 *
+//					(u_edge->values[index] + u_edge->values[east] +
+//							v_edge->values[south] + v_edge->values[southeast]);
+//			fluxu = flux * (u_corner->values[index] + u_corner->values[south]) / dx;
+//			fluxv = flux * (v_corner->values[index] + v_corner->values[south]) / dy;
+//			dut->values[index] -= fluxu;
+//			dut->values[south] += fluxu;
+//			dvt->values[index] -= fluxv;
+//			dvt->values[south] += fluxv;
+
+
 
 		}
 	}
@@ -975,7 +996,7 @@ void advectv(
 
 			u_corner->values[index] = (
 					((((u_edge->values[index] + u_edge->values[south]) / 2)
-//							+ dut->values[index]
+							+ dut->values[index]
 										  ) /
 							((pressure->values[index] + pressure->values[east] +
 									pressure->values[south] + pressure->values[southeast]) / 4))
@@ -985,9 +1006,18 @@ void advectv(
 //						u_edge->values[index], pressure->values[index],
 //						pressure->values[east], u_edge->values[south], pressure->values[south], pressure->values[southeast]);
 //			}
-			v_corner->values[index] =
-					(v_edge->values[index]/(pressure->values[index] + pressure->values[south]) +
-					v_edge->values[east]/(pressure->values[east] + pressure->values[southeast]));
+
+			v_corner->values[index] = (
+					((((v_edge->values[index] + v_edge->values[east]) / 2)
+							+ dvt->values[index]
+										  ) /
+							((pressure->values[index] + pressure->values[south] +
+									pressure->values[east] + pressure->values[southeast]) / 4))
+					);
+
+//			v_corner->values[index] =
+//					(v_edge->values[index]/(pressure->values[index] + pressure->values[south]) +
+//					v_edge->values[east]/(pressure->values[east] + pressure->values[southeast]));
 		}
 	}
 

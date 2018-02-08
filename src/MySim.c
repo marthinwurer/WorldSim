@@ -56,7 +56,7 @@
 
 //#define DO_EROSION
 #define DO_THERMAL_EROSION
-#define DO_WATER
+//#define DO_WATER
 #define DO_STAVO_WATER
 
 #define DO_WEATHER
@@ -74,11 +74,11 @@ float height_multiplier = 8192.0f; // the amount the fractal height is multiplie
 const float BASE_SEA_LEVEL = 0.5;
 
 // the time in seconds between each timestep
-float timestep = 120.0f;
+float timestep = 9.0f;
 
 // the square edge length in meters (assume that everything is a perfect square/cube)
 //float squarelen = 1156250.0f;
-float squarelen = 112000.0f;
+float squarelen = 1120000.0f;
 
 
 // acceleration due to gravity
@@ -502,7 +502,8 @@ int main(void) {
         gettimeofday(&start, NULL);
         if( play || step){
 
-        	printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
+        	//printf("iteration %d, max %f, first %f, v %f\n",count, maxval, gradient->values[0], vapor);
+        	printf("iteration %d\n",count);
         	fflush(stdout);
 //        check_nan(heightmap, __FILE__, __LINE__);
         }
@@ -961,7 +962,7 @@ int main(void) {
         mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
         if( play || step){
 
-        	printf("Elapsed time: %ld milliseconds\n", mtime);
+        	printf("Elapsed time: %ld milliseconds", mtime);
         	count ++;
         }else{
         	usleep((unsigned int)10);
